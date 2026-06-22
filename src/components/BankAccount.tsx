@@ -1,54 +1,98 @@
 "use client";
 
 import { CircleX, Pencil, Save } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { ApiClientError, api } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import type { BankAccount as BankAccountType } from "@/types/api";
 import { Input } from "./ui/input";
 
-// FAKE DATA — the Blue Desk API doesn't yet expose affiliate bank-account details.
-// Remove once the docs/api-gaps.md "Affiliate bank account" item lands.
-const initialBankAccount = {
-  holder: "Jón Sigurðsson",
-  bankName: "Landsbankinn",
-  iban: "0133-26-654321",
-  swift: "",
-};
+const emptyForm = { holderName: "", bankName: "", iban: "", swift: "" };
 
 export default function BankAccount() {
-  const [saved, setSaved] = useState(initialBankAccount);
-  const [holder, setHolder] = useState(saved.holder);
-  const [bankName, setBankName] = useState(saved.bankName);
-  const [iban, setIban] = useState(saved.iban);
-  const [swift, setSwift] = useState(saved.swift);
+  const [saved, setSaved] = useState<BankAccountType | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [form, setForm] = useState(emptyForm);
+
+  useEffect(() => {
+    let active = true;
+    api
+      .getBankAccount()
+      .then((account) => {
+        if (active) setSaved(account);
+      })
+      .catch(() => {
+        if (active) setError("Couldn't load your bank account.");
+      })
+      .finally(() => {
+        if (active) setIsLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const startEditing = () => {
-    setHolder(saved.holder);
-    setBankName(saved.bankName);
-    setIban(saved.iban);
-    setSwift(saved.swift);
+    setForm(
+      saved
+        ? { holderName: saved.holderName, bankName: saved.bankName, iban: saved.iban, swift: saved.swift ?? "" }
+        : emptyForm,
+    );
+    setError(null);
     setIsEditing(true);
   };
 
-  const handleSave = () => {
-    setSaved({ holder, bankName, iban, swift });
-    setIsEditing(false);
+  const handleSave = async () => {
+    setError(null);
+    setIsSaving(true);
+    try {
+      const result = await api.updateBankAccount({
+        holderName: form.holderName,
+        bankName: form.bankName,
+        iban: form.iban,
+        swift: form.swift.trim() || null,
+      });
+      setSaved(result);
+      setIsEditing(false);
+    } catch (err) {
+      setError(err instanceof ApiClientError ? err.message : "Couldn't save your bank account. Please try again.");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleCancel = () => {
-    setHolder(saved.holder);
-    setBankName(saved.bankName);
-    setIban(saved.iban);
-    setSwift(saved.swift);
+    setError(null);
     setIsEditing(false);
   };
 
+  const setField = (key: keyof typeof form) => (value: string) => setForm((f) => ({ ...f, [key]: value }));
+
+  if (isLoading) {
+    return (
+      <div className="border border-light-gray rounded-2xl p-8 flex flex-col gap-4">
+        <h2 className="text-2xl font-medium">Bank Account</h2>
+        <div className="flex flex-col gap-3">
+          {[0, 1, 2, 3].map((i) => (
+            <div key={i} className="flex flex-col gap-[3.75px]">
+              <div className="animate-pulse h-3 w-24 bg-muted rounded" />
+              <div className="animate-pulse h-4 w-40 bg-muted rounded" />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   if (!isEditing) {
     const readOnlyFields: { label: string; value: string; mono?: boolean }[] = [
-      { label: "Account Holder", value: saved.holder },
-      { label: "Bank", value: saved.bankName },
-      { label: "Account Number", value: saved.iban, mono: true },
-      { label: "SWIFT / BIC", value: saved.swift || "—", mono: true },
+      { label: "Account Holder", value: saved?.holderName || "—" },
+      { label: "Bank", value: saved?.bankName || "—" },
+      { label: "Account Number", value: saved?.iban || "—", mono: true },
+      { label: "SWIFT / BIC", value: saved?.swift || "—", mono: true },
     ];
 
     return (
@@ -64,6 +108,12 @@ export default function BankAccount() {
             <Pencil className="size-4" />
           </button>
         </div>
+
+        {!saved && (
+          <div className="rounded-lg border border-[#fed7aa] bg-[#fff7ed] px-3 py-3 text-[11px] leading-4 text-[#9a3412]">
+            No bank account on file yet. Add your details so payouts can be transferred to you.
+          </div>
+        )}
 
         <div className="flex flex-col gap-3">
           {readOnlyFields.map((f) => (
@@ -81,24 +131,28 @@ export default function BankAccount() {
     );
   }
 
-  const fields: { label: string; placeholder?: string; value: string; onChange: (v: string) => void }[] = [
-    { label: "Account Holder Name", value: holder, onChange: setHolder },
-    { label: "Bank Name", value: bankName, onChange: setBankName },
-    { label: "Account Number / IBAN", value: iban, onChange: setIban },
-    { label: "SWIFT / BIC (Optional)", placeholder: "NBIIISREXXX", value: swift, onChange: setSwift },
+  const fields: { label: string; placeholder?: string; key: keyof typeof form }[] = [
+    { label: "Account Holder Name", key: "holderName" },
+    { label: "Bank Name", key: "bankName" },
+    { label: "Account Number / IBAN", key: "iban" },
+    { label: "SWIFT / BIC (Optional)", placeholder: "NBIIISRE", key: "swift" },
   ];
 
   return (
     <div className="border border-light-gray rounded-2xl p-8 flex flex-col gap-4">
       <h2 className="text-2xl font-medium">Bank Account</h2>
 
+      {error && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-xs text-red-700">{error}</div>
+      )}
+
       <div className="flex flex-col gap-3">
         {fields.map((f) => (
           <div key={f.label} className="flex flex-col gap-1.5">
             <label className="text-xs font-medium text-[#6a7282]">{f.label}</label>
             <Input
-              value={f.value}
-              onChange={(e) => f.onChange(e.target.value)}
+              value={form[f.key]}
+              onChange={(e) => setField(f.key)(e.target.value)}
               placeholder={f.placeholder}
               className="h-[39px] rounded-lg border-light-gray text-sm placeholder:text-foreground/50"
             />
@@ -110,15 +164,17 @@ export default function BankAccount() {
         <button
           type="button"
           onClick={handleSave}
-          className="flex-1 h-10 rounded-lg bg-secondary text-white text-sm font-medium flex items-center justify-center gap-1.5"
+          disabled={isSaving}
+          className="flex-1 h-10 rounded-lg bg-secondary text-white text-sm font-medium flex items-center justify-center gap-1.5 disabled:opacity-60"
         >
           <Save className="size-4" />
-          Save Changes
+          {isSaving ? "Saving..." : "Save Changes"}
         </button>
         <button
           type="button"
           onClick={handleCancel}
-          className="flex-1 h-10 rounded-lg bg-[#f3f4f6] text-[#364153] text-sm font-medium flex items-center justify-center gap-1.5"
+          disabled={isSaving}
+          className="flex-1 h-10 rounded-lg bg-[#f3f4f6] text-[#364153] text-sm font-medium flex items-center justify-center gap-1.5 disabled:opacity-60"
         >
           <CircleX className="size-4" />
           Cancel

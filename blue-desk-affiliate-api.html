@@ -1,0 +1,1147 @@
+<html lang="en"><head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Blue's Affiliate API</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root { --accent: #0046FF; --sidebar: #0f172a; --bg: #f8fafc; --card: #fff; --code-bg: #1e293b; --code-text: #e2e8f0; --text: #1e293b; --muted: #64748b; --border: #e2e8f0; --get: #22c55e; --post: #0046FF; --put: #f59e0b; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; }
+  
+    /* Sidebar */
+    .sidebar { position: fixed; top: 0; left: 0; width: 260px; height: 100vh; background: var(--sidebar); color: #cbd5e1; overflow-y: auto; padding: 24px 0; z-index: 10; }
+    .sidebar-logo { padding: 0 20px 20px; border-bottom: 1px solid #1e293b; margin-bottom: 16px; }
+    .sidebar-logo h1 { font-size: 18px; color: #fff; font-weight: 700; }
+    .sidebar-logo p { font-size: 12px; color: #94a3b8; margin-top: 4px; }
+    .sidebar-section { padding: 8px 20px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #475569; }
+    .sidebar a { display: flex; align-items: center; gap: 8px; padding: 6px 20px; font-size: 13px; color: #94a3b8; text-decoration: none; transition: all 0.15s; }
+    .sidebar a:hover { color: #fff; background: rgba(255,255,255,0.05); }
+    .sidebar .method-badge-sm { display: inline-block; font-size: 9px; font-weight: 700; padding: 1px 5px; border-radius: 3px; min-width: 32px; text-align: center; }
+    .sidebar .get { background: rgba(34,197,94,0.15); color: #4ade80; }
+    .sidebar .post { background: rgba(0,70,255,0.15); color: #60a5fa; }
+    .sidebar .put { background: rgba(245,158,11,0.15); color: #fbbf24; }
+  
+    /* Main */
+    .main { margin-left: 260px; padding: 40px 48px; max-width: 900px; }
+  
+    h2 { font-size: 28px; font-weight: 700; margin: 48px 0 16px; padding-top: 16px; border-top: 1px solid var(--border); }
+    h2:first-of-type { border-top: none; margin-top: 0; }
+    h3 { font-size: 14px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; margin: 32px 0 12px; }
+    p { margin-bottom: 12px; color: #334155; }
+  
+    /* Endpoint */
+    .endpoint { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 24px; margin: 20px 0; }
+    .endpoint-header { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+    .method-badge { font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 4px; font-family: monospace; }
+    .method-badge.get { background: #dcfce7; color: #166534; }
+    .method-badge.post { background: #dbeafe; color: #1e40af; }
+    .method-badge.put { background: #fef3c7; color: #92400e; }
+    .endpoint-path { font-family: monospace; font-size: 14px; color: var(--text); font-weight: 600; word-break: break-all; }
+    .endpoint-desc { color: var(--muted); font-size: 14px; margin-bottom: 16px; }
+    .endpoint-note { font-size: 13px; color: var(--muted); background: #f1f5f9; padding: 8px 12px; border-radius: 4px; margin-top: 12px; border-left: 3px solid var(--accent); }
+  
+    /* Code blocks */
+    .code-block { position: relative; background: var(--code-bg); border-radius: 6px; margin: 8px 0 16px; overflow: hidden; }
+    .code-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; padding: 8px 16px 0; color: #94a3b8; }
+    .code-block pre { padding: 12px 16px; overflow-x: auto; font-family: 'SF Mono', 'Fira Code', monospace; font-size: 13px; line-height: 1.5; color: var(--code-text); }
+    .copy-btn { position: absolute; top: 8px; right: 8px; background: #334155; border: none; color: #94a3b8; padding: 4px 10px; border-radius: 4px; font-size: 11px; cursor: pointer; transition: all 0.15s; }
+    .copy-btn:hover { background: #475569; color: #fff; }
+    .copy-btn.copied { background: #166534; color: #4ade80; }
+  
+    /* Status badge */
+    .status-code { display: inline-block; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 4px; margin-right: 6px; font-family: monospace; }
+    .status-code.s2 { background: #dcfce7; color: #166534; }
+    .status-code.s4 { background: #fef3c7; color: #92400e; }
+  
+    /* Params table */
+    .params-table { width: 100%; border-collapse: collapse; margin: 8px 0 16px; font-size: 13px; }
+    .params-table th { text-align: left; padding: 6px 12px; background: #f8fafc; border: 1px solid var(--border); font-weight: 600; color: var(--muted); font-size: 11px; text-transform: uppercase; }
+    .params-table td { padding: 6px 12px; border: 1px solid var(--border); }
+    .params-table code { font-size: 12px; background: #f1f5f9; padding: 1px 4px; border-radius: 3px; }
+  
+    /* Info boxes */
+    .info-box { padding: 12px 16px; border-radius: 6px; margin: 16px 0; font-size: 14px; }
+    .info-box.warn { background: #fef3c7; border: 1px solid #f59e0b; color: #92400e; }
+    .info-box.info { background: #dbeafe; border: 1px solid #60a5fa; color: #1e40af; }
+  
+    /* Responsive */
+    @media (max-width: 768px) {
+      .sidebar { position: relative; width: 100%; height: auto; padding: 16px 0; }
+      .main { margin-left: 0; padding: 20px; }
+    }
+  </style>
+  <style>
+    .imageye-selected {
+      outline: 2px solid black !important;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.5) !important;
+    }
+  </style><script src="chrome-extension://liecbddmkiiihnedobmlmillhodjkdmb/js/recordConsoleEvents.js"></script></head>
+  <body>
+  
+  <nav class="sidebar">
+    <div class="sidebar-logo">
+      <h1>Blue's Affiliate API</h1>
+      <p>Partner Integration Reference</p>
+    </div>
+  
+    <div class="sidebar-section">Getting Started</div>
+    <a href="#authentication">Authentication</a>
+    <a href="#base-url">Base URL</a>
+    <a href="#rate-limits">Rate Limits</a>
+    <a href="#errors">Error Handling</a>
+  
+    <div class="sidebar-section">Authentication</div>
+    <a href="#login"><span class="method-badge-sm post">POST</span> Login</a>
+  
+    <div class="sidebar-section">Applications</div>
+    <a href="#applications"><span class="method-badge-sm post">POST</span> Submit Application</a>
+  
+    <div class="sidebar-section">Click Tracking</div>
+    <a href="#record-click"><span class="method-badge-sm post">POST</span> Record Click</a>
+    <a href="#daily-clicks"><span class="method-badge-sm get">GET</span> Daily Clicks</a>
+    <a href="#total-clicks"><span class="method-badge-sm get">GET</span> Total Clicks</a>
+  
+    <div class="sidebar-section">Performance</div>
+    <a href="#sub-id-performance"><span class="method-badge-sm get">GET</span> Sub-ID Performance</a>
+  
+    <div class="sidebar-section">Revenue</div>
+    <a href="#revenue"><span class="method-badge-sm get">GET</span> Revenue Total</a>
+    <a href="#commission"><span class="method-badge-sm get">GET</span> Expected Commission</a>
+  
+    <div class="sidebar-section">Payouts</div>
+    <a href="#balance"><span class="method-badge-sm get">GET</span> Payout Balance</a>
+    <a href="#history"><span class="method-badge-sm get">GET</span> Payout History</a>
+    <a href="#request-payout"><span class="method-badge-sm post">POST</span> Request Payout</a>
+  
+    <div class="sidebar-section">Bank Account</div>
+    <a href="#bank-account-get"><span class="method-badge-sm get">GET</span> Bank Account</a>
+    <a href="#bank-account-put"><span class="method-badge-sm put">PUT</span> Bank Account</a>
+  
+    <div class="sidebar-section">Notifications</div>
+    <a href="#notifications-list"><span class="method-badge-sm get">GET</span> Notifications</a>
+    <a href="#notifications-mark-all"><span class="method-badge-sm post">POST</span> Mark All Read</a>
+    <a href="#notifications-mark-one"><span class="method-badge-sm post">POST</span> Mark One Read</a>
+  
+    <div class="sidebar-section">Reference</div>
+    <a href="#notes">General Notes</a>
+  </nav>
+  
+  <div class="main">
+  
+  <h2 id="introduction">Blue's Affiliate API</h2>
+  <p>This API enables partner systems to integrate with BlueDesk's affiliate management platform. It provides endpoints for affiliate authentication, click tracking, revenue reporting, payout management, bank-account configuration, and in-portal notifications.</p>
+  <p>The API is designed for <strong>server-to-server communication</strong>. Your backend calls these endpoints on behalf of affiliates — the affiliate portal should never call BlueDesk directly.</p>
+  
+  <!-- Authentication -->
+  <h2 id="authentication">Authentication</h2>
+  <p>All requests must include an API key in the <code>X-API-Key</code> header. API keys are issued by BlueDesk administrators.</p>
+  <div class="code-block">
+    <div class="code-label">Header</div>
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre>X-API-Key: bdp_xxxxxxxx_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx</pre>
+  </div>
+  <p>Requests without a valid API key will receive a <code>401 Unauthorized</code> response.</p>
+  
+  <!-- Base URL -->
+  <h2 id="base-url">Base URL</h2>
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre>https://affiliate-api.bluedesk.is</pre>
+  </div>
+  <div class="info-box info">Staging environment: <code>https://affiliate-api-staging.bluedesk.is</code></div>
+  
+  <!-- Rate Limits -->
+  <h2 id="rate-limits">Rate Limits</h2>
+  <table class="params-table">
+    <thead><tr><th>Scope</th><th>Limit</th><th>Window</th></tr></thead>
+    <tbody>
+      <tr><td>Global (all endpoints)</td><td>1,000 requests</td><td>Per minute</td></tr>
+      <tr><td>Login</td><td>10 requests</td><td>Per minute per IP</td></tr>
+      <tr><td>Click ingestion</td><td>500 requests</td><td>Per minute per API key</td></tr>
+    </tbody>
+  </table>
+  <p>Exceeded limits return <code>429 Too Many Requests</code>.</p>
+  <div class="info-box warn"><strong>Note:</strong> rate-limit responses are plain text, not JSON. The body is <code>Rate limit exceeded</code> and the <code>Content-Type</code> is <code>text/plain; charset=utf-8</code>. This differs from all other partner API endpoints — clients should branch on <code>Content-Type</code> (or status code 429) rather than always JSON-decoding the body.</div>
+  
+  <!-- Errors -->
+  <h2 id="errors">Error Handling</h2>
+  <p>The API uses standard HTTP status codes:</p>
+  <table class="params-table">
+    <thead><tr><th>Code</th><th>Meaning</th></tr></thead>
+    <tbody>
+      <tr><td><code>200</code></td><td>Success</td></tr>
+      <tr><td><code>201</code></td><td>Created</td></tr>
+      <tr><td><code>400</code></td><td>Bad request (validation error)</td></tr>
+      <tr><td><code>401</code></td><td>Unauthorized (missing/invalid API key or credentials)</td></tr>
+      <tr><td><code>404</code></td><td>Resource not found</td></tr>
+      <tr><td><code>409</code></td><td>Conflict (e.g., duplicate email)</td></tr>
+      <tr><td><code>429</code></td><td>Rate limit exceeded</td></tr>
+      <tr><td><code>500</code></td><td>Server error</td></tr>
+    </tbody>
+  </table>
+  
+  <h3>Error Response Shapes</h3>
+  <p>Two error response shapes currently coexist while the API completes a transition. Both are JSON, both carry a single human-readable message, and both will be returned with the appropriate HTTP status code. Partners must handle both shapes; a future flag-day migration will unify them.</p>
+  
+  <p><strong>Flat (legacy)</strong> — used by endpoints that were live before the affiliate portal launched:</p>
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre>{
+    "error": "Amount exceeds available balance"
+  }</pre>
+  </div>
+  <p>Endpoints using the flat shape: <code>POST /auth/login</code>, <code>POST /applications</code>, <code>POST /affiliates/{id}/clicks</code>, <code>GET /affiliates/{id}/clicks</code>, <code>GET /affiliates/{id}/clicks/total</code>, <code>GET /affiliates/{id}/revenue/total</code>, <code>GET /affiliates/{id}/commission/expected</code>, <code>GET /affiliates/{id}/payouts/balance</code>, <code>GET /affiliates/{id}/payouts/history</code>, <code>POST /affiliates/{id}/payouts/request</code>.</p>
+  
+  <p><strong>Nested (new)</strong> — used by every endpoint added 2026-04 onwards:</p>
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre>{
+    "error": {
+      "message": "invalid IBAN format"
+    }
+  }</pre>
+  </div>
+  <p>Endpoints using the nested shape: <code>GET</code> and <code>PUT /affiliates/{id}/bank-account</code>, <code>GET /affiliates/{id}/notifications</code>, <code>POST /affiliates/{id}/notifications/mark-all-read</code>, <code>POST /affiliates/{id}/notifications/{notificationId}/read</code>, <code>GET /affiliates/{id}/performance/sub-ids</code>.</p>
+  
+  <p>Each endpoint section below shows the correct shape for that endpoint's error responses.</p>
+  
+  <!-- ===== ENDPOINTS ===== -->
+  
+  <!-- 1. Login -->
+  <h2 id="login">Authenticate Affiliate</h2>
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method-badge post">POST</span>
+      <span class="endpoint-path">/api/v1/partner/auth/login</span>
+    </div>
+    <p class="endpoint-desc">Validate affiliate credentials. Returns affiliate identity for your system to issue its own session token.</p>
+  
+    <h3>Request Body</h3>
+    <div class="code-block">
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      <pre>{
+    "email": "affiliate@example.com",
+    "password": "their-password"
+  }</pre>
+    </div>
+  
+    <h3>Response</h3>
+    <p><span class="status-code s2">200</span> Success</p>
+    <div class="code-block">
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      <pre>{
+    "affiliate": {
+      "id": "3f8a92b1-4e5c-4d2a-9f1b-8c7d6e5f4a3b",
+      "name": "Demo Affiliate",
+      "email": "affiliate@example.com",
+      "referralLink": "https://bluecarrental.is?ref=demo-affiliate",
+      "bankAccount": {
+        "holderName": "Demo Affiliate ehf.",
+        "bankName": "Landsbankinn",
+        "iban": "IS140159260076545510730339",
+        "swift": "NBIIISRE"
+      }
+    }
+  }</pre>
+    </div>
+    <p>The <code>bankAccount</code> field is always present in the response. It is <code>null</code> when the affiliate has not yet configured a bank account, allowing your system to render a "configure your account" CTA without an extra round-trip.</p>
+    <div class="code-block">
+      <div class="code-label">When no bank account is configured</div>
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      <pre>{
+    "affiliate": {
+      "id": "3f8a92b1-4e5c-4d2a-9f1b-8c7d6e5f4a3b",
+      "name": "Demo Affiliate",
+      "email": "affiliate@example.com",
+      "referralLink": "https://bluecarrental.is?ref=demo-affiliate",
+      "bankAccount": null
+    }
+  }</pre>
+    </div>
+    <p><span class="status-code s4">400</span> Validation error (flat error shape)</p>
+    <div class="code-block">
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      <pre>{
+    "error": "Email and password are required"
+  }</pre>
+    </div>
+    <p><code>"Invalid request body"</code> is also returned with 400 for malformed JSON.</p>
+    <p><span class="status-code s4">401</span> Invalid credentials (flat error shape)</p>
+    <div class="code-block">
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      <pre>{
+    "error": "Invalid credentials"
+  }</pre>
+    </div>
+    <div class="endpoint-note">Only affiliates with status <strong>approved</strong> or <strong>active</strong> can log in. Unapproved, rejected, or deactivated affiliates receive 401 with the same generic message to avoid leaking account state.</div>
+  </div>
+  
+  <!-- 2. Applications -->
+  <h2 id="applications">Submit Affiliate Application</h2>
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method-badge post">POST</span>
+      <span class="endpoint-path">/api/v1/partner/applications</span>
+    </div>
+    <p class="endpoint-desc">Submit a new affiliate application from the "Join Us" form. Creates an affiliate with status <code>unapproved</code>.</p>
+  
+    <h3>Request Body</h3>
+    <div class="code-block">
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      <pre>{
+    "email": "new-affiliate@example.com",
+    "password": "securepassword123",
+    "firstName": "John",
+    "lastName": "Smith",
+    "companyName": "Nordic Travel Co",
+    "website": "https://nordictravel.co",
+    "instagram": "@nordictravel",
+    "tiktok": "",
+    "youtube": "",
+    "facebook": "nordictravel"
+  }</pre>
+    </div>
+  
+    <h3>Parameters</h3>
+    <table class="params-table">
+      <thead><tr><th>Field</th><th>Required</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>email</code></td><td>Yes</td><td>Affiliate's email address (unique)</td></tr>
+        <tr><td><code>password</code></td><td>Yes</td><td>Password (min 8 characters)</td></tr>
+        <tr><td><code>firstName</code></td><td>Yes</td><td>First name</td></tr>
+        <tr><td><code>lastName</code></td><td>Yes</td><td>Last name</td></tr>
+        <tr><td><code>companyName</code></td><td>No</td><td>Company or property name</td></tr>
+        <tr><td><code>website</code></td><td>No</td><td>Website URL</td></tr>
+        <tr><td><code>instagram</code></td><td>No</td><td>Instagram handle</td></tr>
+        <tr><td><code>tiktok</code></td><td>No</td><td>TikTok handle</td></tr>
+        <tr><td><code>youtube</code></td><td>No</td><td>YouTube channel</td></tr>
+        <tr><td><code>facebook</code></td><td>No</td><td>Facebook page</td></tr>
+      </tbody>
+    </table>
+  
+    <h3>Response</h3>
+    <p><span class="status-code s2">201</span> Created</p>
+    <div class="code-block">
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      <pre>{
+    "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "slug": "nordic-travel-co",
+    "email": "new-affiliate@example.com",
+    "firstName": "John",
+    "lastName": "Smith",
+    "companyName": "Nordic Travel Co",
+    "status": "unapproved",
+    "availableBalance": 0,
+    "carenSetupComplete": false,
+    "createdAt": "2026-03-31T12:00:00Z",
+    "updatedAt": "2026-03-31T12:00:00Z"
+  }</pre>
+    </div>
+    <p>The full Affiliate record is returned. Optional fields (e.g. <code>companyName</code>, <code>website</code>, social handles) are omitted when empty; <code>availableBalance</code>, <code>carenSetupComplete</code>, <code>status</code>, <code>createdAt</code>, and <code>updatedAt</code> are always present.</p>
+    <p><span class="status-code s4">400</span> Validation error (flat error shape)</p>
+    <div class="code-block">
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      <pre>{
+    "error": "First name, last name, email, and password are required"
+  }</pre>
+    </div>
+    <p><code>"Invalid request body"</code> is also returned with 400 for malformed JSON.</p>
+    <p><span class="status-code s4">409</span> Email already registered (flat error shape)</p>
+    <div class="code-block">
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      <pre>{
+    "error": "An account with this email already exists"
+  }</pre>
+    </div>
+    <p><span class="status-code s4">500</span> Server error (flat error shape)</p>
+    <div class="code-block">
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      <pre>{
+    "error": "Failed to process application"
+  }</pre>
+    </div>
+    <p>Server error — safe to retry with backoff.</p>
+  </div>
+  
+  <!-- 3. Record Click -->
+  <h2 id="record-click">Record Click Event</h2>
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method-badge post">POST</span>
+      <span class="endpoint-path">/api/v1/partner/affiliates/{affiliateId}/clicks</span>
+    </div>
+    <p class="endpoint-desc">Record a referral link click. Call this whenever a visitor arrives via an affiliate's referral link.</p>
+  
+    <h3>Path Parameters</h3>
+    <table class="params-table">
+      <thead><tr><th>Parameter</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>affiliateId</code></td><td>The affiliate's UUID (from login response)</td></tr>
+      </tbody>
+    </table>
+  
+    <h3>Request Body</h3>
+    <p>All fields are optional and backward-compatible. Old clients that send only <code>country</code> and <code>sourceApp</code> continue to work unchanged.</p>
+    <div class="code-block">
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      <pre>{
+    "country": "IS",
+    "sourceApp": "website",
+    "subId": "promo-spring",
+    "source": "instagram",
+    "medium": "social",
+    "campaign": "spring-2026"
+  }</pre>
+    </div>
+  
+    <h3>Parameters</h3>
+    <table class="params-table">
+      <thead><tr><th>Field</th><th>Required</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>country</code></td><td>No</td><td>Visitor's ISO country code</td></tr>
+        <tr><td><code>sourceApp</code></td><td>No</td><td>Identifier for the referring platform (e.g., <code>website</code>, <code>app</code>)</td></tr>
+        <tr><td><code>subId</code></td><td>No</td><td>Partner's own sub-affiliate identifier — surfaces in the Sub-ID Performance endpoint</td></tr>
+        <tr><td><code>source</code></td><td>No</td><td>UTM source. Stored as <code>utm_source</code></td></tr>
+        <tr><td><code>medium</code></td><td>No</td><td>UTM medium. Stored as <code>utm_medium</code></td></tr>
+        <tr><td><code>campaign</code></td><td>No</td><td>UTM campaign. Stored as <code>utm_campaign</code></td></tr>
+      </tbody>
+    </table>
+    <div class="endpoint-note">Note the JSON keys for UTM fields are <code>source</code>, <code>medium</code>, and <code>campaign</code> — not <code>utmSource</code> / <code>utmMedium</code> / <code>utmCampaign</code>.</div>
+  
+    <h3>Response</h3>
+    <p><span class="status-code s2">201</span> Created</p>
+    <div class="code-block">
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      <pre>{
+    "status": "ok"
+  }</pre>
+    </div>
+    <p><span class="status-code s4">400</span> Invalid affiliate ID format (flat error shape)</p>
+    <div class="code-block">
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      <pre>{
+    "error": "Invalid affiliate ID format"
+  }</pre>
+    </div>
+    <p><span class="status-code s4">404</span> Affiliate not found (flat error shape)</p>
+    <div class="code-block">
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      <pre>{
+    "error": "Affiliate not found"
+  }</pre>
+    </div>
+    <p><span class="status-code s4">500</span> Failed to record click (flat error shape)</p>
+    <div class="code-block">
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      <pre>{
+    "error": "Failed to record click"
+  }</pre>
+    </div>
+    <p>Server error — safe to retry with backoff.</p>
+  </div>
+  
+  <!-- 4. Daily Clicks -->
+  <h2 id="daily-clicks">Daily Click Breakdown</h2>
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method-badge get">GET</span>
+      <span class="endpoint-path">/api/v1/partner/affiliates/{affiliateId}/clicks</span>
+    </div>
+    <p class="endpoint-desc">Get daily click counts for a date range. Every day in the range is included, even if the count is zero.</p>
+  
+    <h3>Query Parameters</h3>
+    <table class="params-table">
+      <thead><tr><th>Parameter</th><th>Required</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>from</code></td><td>Yes</td><td>Start date in <code>YYYY-MM-DD</code> format (inclusive)</td></tr>
+        <tr><td><code>to</code></td><td>Yes</td><td>End date in <code>YYYY-MM-DD</code> format (inclusive). Must not be before <code>from</code>.</td></tr>
+      </tbody>
+    </table>
+  
+    <h3>Response</h3>
+    <p><span class="status-code s2">200</span> Success</p>
+    <div class="code-block">
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      <pre>{
+    "clicksPerDay": [
+      { "date": "2026-03-01", "value": 94 },
+      { "date": "2026-03-02", "value": 87 },
+      { "date": "2026-03-03", "value": 0 }
+    ]
+  }</pre>
+    </div>
+    <p>Each item's <code>date</code> is a calendar day in <code>YYYY-MM-DD</code> form — not an ISO timestamp — and <code>value</code> is the integer click count for that day.</p>
+    <p><span class="status-code s4">400</span> Missing or invalid date range (flat error shape)</p>
+    <div class="code-block">
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      <pre>{
+    "error": "from and to query parameters are required"
+  }</pre>
+    </div>
+    <p><span class="status-code s4">500</span> Server error (flat error shape)</p>
+    <div class="code-block">
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      <pre>{
+    "error": "Failed to get daily clicks"
+  }</pre>
+    </div>
+    <p>Server error — safe to retry with backoff.</p>
+  </div>
+  
+  <!-- 5. Total Clicks -->
+  <h2 id="total-clicks">Total Clicks</h2>
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method-badge get">GET</span>
+      <span class="endpoint-path">/api/v1/partner/affiliates/{affiliateId}/clicks/total</span>
+    </div>
+    <p class="endpoint-desc">Get the total click count for a date range.</p>
+  
+    <h3>Query Parameters</h3>
+    <table class="params-table">
+      <thead><tr><th>Parameter</th><th>Required</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>from</code></td><td>Yes</td><td>Start date in <code>YYYY-MM-DD</code> format (inclusive)</td></tr>
+        <tr><td><code>to</code></td><td>Yes</td><td>End date in <code>YYYY-MM-DD</code> format (inclusive). Must not be before <code>from</code>.</td></tr>
+      </tbody>
+    </table>
+  
+    <h3>Response</h3>
+    <p><span class="status-code s2">200</span> Success</p>
+    <div class="code-block">
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      <pre>{
+    "total": 1234
+  }</pre>
+    </div>
+    <p><span class="status-code s4">400</span> Missing or invalid date range (flat error shape)</p>
+    <p><span class="status-code s4">500</span> Server error (flat error shape)</p>
+    <div class="code-block">
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      <pre>{
+    "error": "Failed to get total clicks"
+  }</pre>
+    </div>
+    <p>Server error — safe to retry with backoff.</p>
+  </div>
+  
+  <!-- 6. Sub-ID Performance -->
+  <h2 id="sub-id-performance">Sub-ID Performance</h2>
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method-badge get">GET</span>
+      <span class="endpoint-path">/api/v1/partner/affiliates/{affiliateId}/performance/sub-ids</span>
+    </div>
+    <p class="endpoint-desc">Per-sub-id click breakdown for the affiliate's referral traffic. Use this to see how individual sub-affiliate identifiers and UTM combinations are performing.</p>
+  
+    <h3>Query Parameters</h3>
+    <table class="params-table">
+      <thead><tr><th>Parameter</th><th>Required</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>from</code></td><td>No</td><td>Start date in <code>YYYY-MM-DD</code> format (inclusive)</td></tr>
+        <tr><td><code>to</code></td><td>No</td><td>End date in <code>YYYY-MM-DD</code> format (inclusive). Must not be before <code>from</code>.</td></tr>
+      </tbody>
+    </table>
+    <p>If both <code>from</code> and <code>to</code> are omitted, the endpoint defaults to the last 30 days (<code>to</code> = today UTC, <code>from</code> = today − 30 days). Supplying only one of the two still returns 400 — partial date ranges are not allowed, since one-sided defaults would silently widen a caller's query window.</p>
+  
+    <h3>Response</h3>
+    <p><span class="status-code s2">200</span> Success</p>
+    <div class="code-block">
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      <pre>[
+    {
+      "subId": "promo-spring",
+      "source": "instagram",
+      "medium": "social",
+      "campaign": "spring-2026",
+      "clicks": 142,
+      "bookings": null,
+      "conversionPercent": null,
+      "revenue": null
+    }
+  ]</pre>
+    </div>
+    <p>Rows are ordered by <code>clicks</code> DESC, then <code>subId</code> ASC for stable rendering. Clicks with a NULL <code>sub_id</code> are excluded. The <code>source</code>, <code>medium</code>, and <code>campaign</code> fields are taken from the <strong>most recent</strong> click's UTM tags for each sub-id.</p>
+    <div class="endpoint-note">The <code>bookings</code>, <code>conversionPercent</code>, and <code>revenue</code> fields are intentionally <code>null</code> in this release. Booking attribution is tracked separately and will be wired into this endpoint in a follow-up — until then, treat them as not-yet-available rather than zero.</div>
+    <p><span class="status-code s4">400</span> Invalid date range (nested error shape)</p>
+    <div class="code-block">
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      <pre>{
+    "error": {
+      "message": "from and to query parameters are required"
+    }
+  }</pre>
+    </div>
+    <p><span class="status-code s4">500</span> Server error (nested error shape)</p>
+    <div class="code-block">
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      <pre>{
+    "error": {
+      "message": "Failed to get sub-id performance"
+    }
+  }</pre>
+    </div>
+    <p>Server error — safe to retry with backoff.</p>
+  </div>
+  
+  <!-- 7. Revenue -->
+  <h2 id="revenue">Revenue Total</h2>
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method-badge get">GET</span>
+      <span class="endpoint-path">/api/v1/partner/affiliates/{affiliateId}/revenue/total</span>
+    </div>
+    <p class="endpoint-desc">Get total revenue generated through the affiliate's referral link for a date range.</p>
+  
+    <h3>Query Parameters</h3>
+    <table class="params-table">
+      <thead><tr><th>Parameter</th><th>Required</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>from</code></td><td>Yes</td><td>Start date in <code>YYYY-MM-DD</code> format (inclusive)</td></tr>
+        <tr><td><code>to</code></td><td>Yes</td><td>End date in <code>YYYY-MM-DD</code> format (inclusive). Must not be before <code>from</code>.</td></tr>
+      </tbody>
+    </table>
+  
+    <h3>Response</h3>
+    <p><span class="status-code s2">200</span> Success</p>
+    <div class="code-block">
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      <pre>{
+    "total": 45000
+  }</pre>
+    </div>
+    <div class="endpoint-note">Returns <code>0</code> if no revenue data has been recorded for the period.</div>
+    <p><span class="status-code s4">400</span> Missing or invalid date range (flat error shape)</p>
+    <p><span class="status-code s4">500</span> Server error (flat error shape)</p>
+    <div class="code-block">
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      <pre>{
+    "error": "Failed to get revenue"
+  }</pre>
+    </div>
+    <p>Server error — safe to retry with backoff.</p>
+  </div>
+  
+  <!-- 8. Commission -->
+  <h2 id="commission">Expected Commission</h2>
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method-badge get">GET</span>
+      <span class="endpoint-path">/api/v1/partner/affiliates/{affiliateId}/commission/expected</span>
+    </div>
+    <p class="endpoint-desc">Get expected commission for a date range.</p>
+  
+    <h3>Query Parameters</h3>
+    <table class="params-table">
+      <thead><tr><th>Parameter</th><th>Required</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>from</code></td><td>Yes</td><td>Start date in <code>YYYY-MM-DD</code> format (inclusive)</td></tr>
+        <tr><td><code>to</code></td><td>Yes</td><td>End date in <code>YYYY-MM-DD</code> format (inclusive). Must not be before <code>from</code>.</td></tr>
+      </tbody>
+    </table>
+  
+    <h3>Response</h3>
+    <p><span class="status-code s2">200</span> Success</p>
+    <div class="code-block">
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      <pre>{
+    "total": 2250
+  }</pre>
+    </div>
+    <div class="endpoint-note">Returns <code>0</code> if no commission data has been recorded for the period.</div>
+    <p><span class="status-code s4">400</span> Missing or invalid date range (flat error shape)</p>
+    <p><span class="status-code s4">500</span> Server error (flat error shape)</p>
+    <div class="code-block">
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      <pre>{
+    "error": "Failed to get commission"
+  }</pre>
+    </div>
+    <p>Server error — safe to retry with backoff.</p>
+  </div>
+  
+  <!-- 9. Balance -->
+  <h2 id="balance">Payout Balance</h2>
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method-badge get">GET</span>
+      <span class="endpoint-path">/api/v1/partner/affiliates/{affiliateId}/payouts/balance</span>
+    </div>
+    <p class="endpoint-desc">Get the affiliate's current available payout balance.</p>
+  
+    <h3>Response</h3>
+    <p><span class="status-code s2">200</span> Success</p>
+    <div class="code-block">
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      <pre>{
+    "availableBalance": 2845
+  }</pre>
+    </div>
+    <p><span class="status-code s4">500</span> Server error (flat error shape)</p>
+    <div class="code-block">
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      <pre>{
+    "error": "Failed to get balance"
+  }</pre>
+    </div>
+    <p>Server error — safe to retry with backoff.</p>
+  </div>
+  
+  <!-- 10. History -->
+  <h2 id="history">Payout History</h2>
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method-badge get">GET</span>
+      <span class="endpoint-path">/api/v1/partner/affiliates/{affiliateId}/payouts/history</span>
+    </div>
+    <p class="endpoint-desc">Get the full payout transaction history for an affiliate.</p>
+  
+    <h3>Response</h3>
+    <p><span class="status-code s2">200</span> Success</p>
+    <div class="code-block">
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      <pre>{
+    "history": [
+      {
+        "id": "f1e2d3c4-b5a6-7890-fedc-ba0987654321",
+        "affiliateId": "3f8a92b1-4e5c-4d2a-9f1b-8c7d6e5f4a3b",
+        "amount": 1200,
+        "status": "paid",
+        "requestDate": "2026-01-05",
+        "paidDate": "2026-01-10",
+        "createdAt": "2026-01-05T10:00:00Z",
+        "updatedAt": "2026-01-10T14:00:00Z"
+      },
+      {
+        "id": "a9b8c7d6-e5f4-3210-abcd-ef9876543210",
+        "affiliateId": "3f8a92b1-4e5c-4d2a-9f1b-8c7d6e5f4a3b",
+        "amount": 500,
+        "status": "pending",
+        "requestDate": "2026-03-15",
+        "paidDate": null,
+        "createdAt": "2026-03-15T09:30:00Z",
+        "updatedAt": "2026-03-15T09:30:00Z"
+      }
+    ]
+  }</pre>
+    </div>
+  
+    <h3>Payout Status Values</h3>
+    <table class="params-table">
+      <thead><tr><th>Status</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>pending</code></td><td>Request submitted, awaiting approval</td></tr>
+        <tr><td><code>approved</code></td><td>Approved by administrator, awaiting payment</td></tr>
+        <tr><td><code>paid</code></td><td>Payment completed</td></tr>
+        <tr><td><code>rejected</code></td><td>Request rejected by administrator</td></tr>
+      </tbody>
+    </table>
+    <p><span class="status-code s4">500</span> Server error (flat error shape)</p>
+    <div class="code-block">
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      <pre>{
+    "error": "Failed to get payout history"
+  }</pre>
+    </div>
+    <p>Server error — safe to retry with backoff.</p>
+  </div>
+  
+  <!-- 11. Request Payout -->
+  <h2 id="request-payout">Submit Payout Request</h2>
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method-badge post">POST</span>
+      <span class="endpoint-path">/api/v1/partner/affiliates/{affiliateId}/payouts/request</span>
+    </div>
+    <p class="endpoint-desc">Submit a payout request. The amount is validated against the affiliate's available balance.</p>
+  
+    <h3>Request Body</h3>
+    <div class="code-block">
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      <pre>{
+    "amount": 500
+  }</pre>
+    </div>
+  
+    <h3>Response</h3>
+    <p><span class="status-code s2">201</span> Created</p>
+    <div class="code-block">
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      <pre>{
+    "id": "c3d4e5f6-a7b8-9012-cdef-ab3456789012",
+    "affiliateId": "3f8a92b1-4e5c-4d2a-9f1b-8c7d6e5f4a3b",
+    "amount": 500,
+    "status": "pending",
+    "requestDate": "2026-03-31",
+    "paidDate": null,
+    "createdAt": "2026-03-31T12:00:00Z",
+    "updatedAt": "2026-03-31T12:00:00Z"
+  }</pre>
+    </div>
+    <p><span class="status-code s4">400</span> Validation error (flat error shape)</p>
+    <div class="code-block">
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      <pre>{
+    "error": "Amount exceeds available balance"
+  }</pre>
+    </div>
+    <p><span class="status-code s4">500</span> Server error (flat error shape)</p>
+    <div class="code-block">
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      <pre>{
+    "error": "Failed to create payout request"
+  }</pre>
+    </div>
+    <p>Server error — safe to retry with backoff.</p>
+    <div class="endpoint-note">The balance is deducted atomically when the request is created. If the request is later rejected, the balance is restored by an administrator.</div>
+  </div>
+  
+  <!-- 12. Get Bank Account -->
+  <h2 id="bank-account-get">Get Bank Account</h2>
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method-badge get">GET</span>
+      <span class="endpoint-path">/api/v1/partner/affiliates/{affiliateId}/bank-account</span>
+    </div>
+    <p class="endpoint-desc">Get the affiliate's configured bank account. Returns the same shape that appears under <code>affiliate.bankAccount</code> in the login response, without the wrapper.</p>
+  
+    <h3>Response</h3>
+    <p><span class="status-code s2">200</span> Success</p>
+    <div class="code-block">
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      <pre>{
+    "holderName": "Demo Affiliate ehf.",
+    "bankName": "Landsbankinn",
+    "iban": "IS140159260076545510730339",
+    "swift": "NBIIISRE"
+  }</pre>
+    </div>
+    <p>The <code>swift</code> field is <code>null</code> when no SWIFT/BIC code has been recorded.</p>
+  
+    <p><span class="status-code s4">404</span> Bank account not configured (nested error shape)</p>
+    <div class="code-block">
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      <pre>{
+    "error": {
+      "message": "Bank account not configured"
+    }
+  }</pre>
+    </div>
+    <p><span class="status-code s4">404</span> Affiliate not found (nested error shape)</p>
+    <div class="code-block">
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      <pre>{
+    "error": {
+      "message": "Affiliate not found"
+    }
+  }</pre>
+    </div>
+    <p><span class="status-code s4">500</span> Server error (nested error shape)</p>
+    <div class="code-block">
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      <pre>{
+    "error": {
+      "message": "Failed to get bank account"
+    }
+  }</pre>
+    </div>
+    <p>Server error — safe to retry with backoff.</p>
+    <div class="endpoint-note">404 with the message <strong>Bank account not configured</strong> is the explicit "needs configuration" signal — the portal uses it to render the configure-account CTA. A separate 404 with <strong>Affiliate not found</strong> is returned when the affiliate UUID itself does not exist.</div>
+  </div>
+  
+  <!-- 13. Put Bank Account -->
+  <h2 id="bank-account-put">Update Bank Account</h2>
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method-badge put">PUT</span>
+      <span class="endpoint-path">/api/v1/partner/affiliates/{affiliateId}/bank-account</span>
+    </div>
+    <p class="endpoint-desc">Create or replace the affiliate's bank-account details. The IBAN is persisted in canonical form (uppercased, internal spaces stripped).</p>
+  
+    <h3>Request Body</h3>
+    <div class="code-block">
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      <pre>{
+    "holderName": "Demo Affiliate ehf.",
+    "bankName": "Landsbankinn",
+    "iban": "IS14 0159 2600 7654 5510 7303 39",
+    "swift": "NBIIISRE"
+  }</pre>
+    </div>
+  
+    <h3>Parameters</h3>
+    <table class="params-table">
+      <thead><tr><th>Field</th><th>Required</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>holderName</code></td><td>Yes</td><td>Account holder name. Non-empty after trimming.</td></tr>
+        <tr><td><code>bankName</code></td><td>Yes</td><td>Bank name. Non-empty after trimming.</td></tr>
+        <tr><td><code>iban</code></td><td>Yes</td><td>IBAN or Iceland domestic account number. See accepted formats below.</td></tr>
+        <tr><td><code>swift</code></td><td>No</td><td>SWIFT/BIC code. May be omitted, <code>null</code>, or empty — all three normalise to NULL in storage.</td></tr>
+      </tbody>
+    </table>
+  
+    <h3>Accepted IBAN Formats</h3>
+    <p>The <code>iban</code> field accepts any of the following (whitespace and case are normalised before matching):</p>
+    <table class="params-table">
+      <thead><tr><th>Format</th><th>Example</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td>Iceland domestic 4-2-6</td><td><code>0159-26-007654</code></td><td>Four-digit bank code, two-digit branch, six-digit account. Dashes optional.</td></tr>
+        <tr><td>Iceland IBAN</td><td><code>IS140159260076545510730339</code></td><td><code>IS</code> followed by 24 digits (26 chars total).</td></tr>
+        <tr><td>Generic ISO 13616 IBAN</td><td><code>DE89370400440532013000</code></td><td>Two-letter country code, two check digits, then 11–30 alphanumerics. Total length 15–34 chars.</td></tr>
+      </tbody>
+    </table>
+    <div class="endpoint-note">Validation is structural only — checksum verification is delegated to the receiving bank at payout time. Banks frequently print IBANs with grouped spaces (e.g. <code>IS14 0159…</code>); these are accepted and stored canonical (no spaces, uppercase).</div>
+  
+    <h3>Response</h3>
+    <p><span class="status-code s2">200</span> Success — returns the saved bank account in canonical form.</p>
+    <div class="code-block">
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      <pre>{
+    "holderName": "Demo Affiliate ehf.",
+    "bankName": "Landsbankinn",
+    "iban": "IS140159260076545510730339",
+    "swift": "NBIIISRE"
+  }</pre>
+    </div>
+  
+    <p><span class="status-code s4">400</span> Validation error (nested error shape)</p>
+    <p>The <code>message</code> identifies the offending field. Possible values:</p>
+    <table class="params-table">
+      <thead><tr><th>Message</th><th>Cause</th></tr></thead>
+      <tbody>
+        <tr><td><code>holderName is required</code></td><td><code>holderName</code> missing or whitespace-only</td></tr>
+        <tr><td><code>bankName is required</code></td><td><code>bankName</code> missing or whitespace-only</td></tr>
+        <tr><td><code>iban is required</code></td><td><code>iban</code> missing or whitespace-only</td></tr>
+        <tr><td><code>invalid IBAN format</code></td><td><code>iban</code> does not match any accepted format</td></tr>
+        <tr><td><code>Invalid request body</code></td><td>JSON parse error</td></tr>
+      </tbody>
+    </table>
+    <div class="code-block">
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      <pre>{
+    "error": {
+      "message": "invalid IBAN format"
+    }
+  }</pre>
+    </div>
+  
+    <p><span class="status-code s4">404</span> Affiliate not found (nested error shape)</p>
+    <div class="code-block">
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      <pre>{
+    "error": {
+      "message": "Affiliate not found"
+    }
+  }</pre>
+    </div>
+  
+    <p><span class="status-code s4">500</span> Server error (nested error shape)</p>
+    <div class="code-block">
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      <pre>{
+    "error": {
+      "message": "Failed to update bank account"
+    }
+  }</pre>
+    </div>
+    <p>Server error — safe to retry with backoff.</p>
+  </div>
+  
+  <!-- 14. List Notifications -->
+  <h2 id="notifications-list">List Notifications</h2>
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method-badge get">GET</span>
+      <span class="endpoint-path">/api/v1/partner/affiliates/{affiliateId}/notifications</span>
+    </div>
+    <p class="endpoint-desc">Get the affiliate's most recent notifications, ordered by creation time descending. Returns up to 100 records.</p>
+  
+    <h3>Response</h3>
+    <p><span class="status-code s2">200</span> Success — always an array, never <code>null</code>.</p>
+    <div class="code-block">
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      <pre>[
+    {
+      "id": "9c1d2e3f-4a5b-6c7d-8e9f-0a1b2c3d4e5f",
+      "title": "Payout approved",
+      "body": "Your payout request of 500 ISK has been approved.",
+      "createdAt": "2026-04-30T12:00:00Z",
+      "read": false
+    }
+  ]</pre>
+    </div>
+    <p>The <code>read</code> field is a real boolean — it becomes <code>true</code> once the notification's <code>read_at</code> timestamp is stamped. <code>createdAt</code> is RFC3339 UTC.</p>
+    <p><span class="status-code s4">400</span> Invalid affiliate ID format (nested error shape)</p>
+    <div class="code-block">
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      <pre>{
+    "error": {
+      "message": "invalid affiliate ID format"
+    }
+  }</pre>
+    </div>
+    <p><span class="status-code s4">404</span> Affiliate not found (nested error shape)</p>
+    <p><span class="status-code s4">500</span> Server error (nested error shape)</p>
+    <div class="code-block">
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      <pre>{
+    "error": {
+      "message": "Failed to list notifications"
+    }
+  }</pre>
+    </div>
+    <p>Server error — safe to retry with backoff.</p>
+  </div>
+  
+  <!-- 15. Mark All Read -->
+  <h2 id="notifications-mark-all">Mark All Notifications Read</h2>
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method-badge post">POST</span>
+      <span class="endpoint-path">/api/v1/partner/affiliates/{affiliateId}/notifications/mark-all-read</span>
+    </div>
+    <p class="endpoint-desc">Stamp <code>read_at</code> on every unread notification for the affiliate. No request body required.</p>
+  
+    <h3>Response</h3>
+    <p><span class="status-code s2">200</span> Success — returns the count of rows updated.</p>
+    <div class="code-block">
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      <pre>{
+    "updated": 3
+  }</pre>
+    </div>
+    <p><code>updated</code> is a non-negative integer (int64).</p>
+    <div class="endpoint-note">Idempotent: a follow-up call when no unread notifications remain returns <code>{"updated": 0}</code> with the same 200 status.</div>
+    <p><span class="status-code s4">400</span> Invalid affiliate ID format (nested error shape)</p>
+    <div class="code-block">
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      <pre>{
+    "error": {
+      "message": "invalid affiliate ID format"
+    }
+  }</pre>
+    </div>
+    <p><span class="status-code s4">404</span> Affiliate not found (nested error shape)</p>
+    <p><span class="status-code s4">500</span> Server error (nested error shape)</p>
+    <div class="code-block">
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      <pre>{
+    "error": {
+      "message": "Failed to mark notifications read"
+    }
+  }</pre>
+    </div>
+    <p>Server error — safe to retry with backoff.</p>
+  </div>
+  
+  <!-- 16. Mark One Read -->
+  <h2 id="notifications-mark-one">Mark Notification Read</h2>
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method-badge post">POST</span>
+      <span class="endpoint-path">/api/v1/partner/affiliates/{affiliateId}/notifications/{notificationId}/read</span>
+    </div>
+    <p class="endpoint-desc">Stamp <code>read_at</code> on a single notification. No request body required.</p>
+  
+    <h3>Path Parameters</h3>
+    <table class="params-table">
+      <thead><tr><th>Parameter</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>affiliateId</code></td><td>The affiliate's UUID</td></tr>
+        <tr><td><code>notificationId</code></td><td>The notification's UUID (from the list endpoint)</td></tr>
+      </tbody>
+    </table>
+  
+    <h3>Response</h3>
+    <p><span class="status-code s2">200</span> Success</p>
+    <div class="code-block">
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      <pre>{
+    "status": "ok"
+  }</pre>
+    </div>
+  
+    <p><span class="status-code s4">400</span> Validation error (nested error shape)</p>
+    <p>The <code>message</code> identifies the offending field. Possible values:</p>
+    <table class="params-table">
+      <thead><tr><th>Message</th><th>Cause</th></tr></thead>
+      <tbody>
+        <tr><td><code>invalid affiliate ID format</code></td><td><code>affiliateId</code> is not a valid UUID</td></tr>
+        <tr><td><code>notification ID is required</code></td><td><code>notificationId</code> path segment missing or empty</td></tr>
+        <tr><td><code>invalid notification ID format</code></td><td><code>notificationId</code> is not a valid UUID</td></tr>
+      </tbody>
+    </table>
+    <div class="code-block">
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      <pre>{
+    "error": {
+      "message": "invalid notification ID format"
+    }
+  }</pre>
+    </div>
+  
+    <p><span class="status-code s4">404</span> Notification not found (nested error shape)</p>
+    <div class="code-block">
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      <pre>{
+    "error": {
+      "message": "Notification not found"
+    }
+  }</pre>
+    </div>
+    <p><span class="status-code s4">500</span> Server error (nested error shape)</p>
+    <div class="code-block">
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      <pre>{
+    "error": {
+      "message": "Failed to mark notification read"
+    }
+  }</pre>
+    </div>
+    <p>Server error — safe to retry with backoff.</p>
+    <div class="endpoint-note">Notifications are scoped to the affiliate. The 404 is returned both when the notification UUID does not exist <em>and</em> when it belongs to a different affiliate — the two cases are intentionally indistinguishable to avoid leaking which notification IDs exist on other accounts.</div>
+  </div>
+  
+  <!-- General Notes -->
+  <h2 id="notes">General Notes</h2>
+  <table class="params-table">
+    <thead><tr><th>Topic</th><th>Detail</th></tr></thead>
+    <tbody>
+      <tr><td>Date format</td><td>Query parameters (<code>from</code>, <code>to</code>) are always <code>YYYY-MM-DD</code>. Response timestamps are RFC3339 UTC (<code>YYYY-MM-DDTHH:MM:SSZ</code>). The <code>date</code> field in <code>clicksPerDay</code> is a calendar day (<code>YYYY-MM-DD</code>), not a timestamp.</td></tr>
+      <tr><td>Currency</td><td>All monetary amounts are in ISK (Icelandic Króna). Monetary fields are JSON numbers (not strings). Whole-króna amounts serialize without a decimal point (e.g. <code>2845</code>, not <code>2845.00</code>); fractional amounts include a decimal point as needed.</td></tr>
+      <tr><td>Affiliate ID</td><td>UUID returned from the login endpoint. Include in all subsequent requests.</td></tr>
+      <tr><td>Content-Type</td><td>All requests and responses use <code>application/json</code></td></tr>
+      <tr><td>Empty arrays</td><td>List endpoints — including notifications and sub-id performance — return <code>[]</code> (not <code>null</code>) when no records exist</td></tr>
+      <tr><td>Error shapes</td><td>Two shapes coexist: flat (<code>{"error": "..."}</code>) for endpoints predating the affiliate portal, and nested (<code>{"error": {"message": "..."}}</code>) for endpoints added 2026-04 onwards. See the Error Handling section above.</td></tr>
+    </tbody>
+  </table>
+  
+  <div style="margin-top: 48px; padding: 24px 0; border-top: 1px solid var(--border); color: var(--muted); font-size: 13px;">
+    <p>© 2026 Blue Car Rental — Blue's Affiliate API</p>
+    <p>Questions? Contact <a href="mailto:gudmundur@bluecarrental.is" style="color: var(--accent);">gudmundur@bluecarrental.is</a></p>
+  </div>
+  
+  </div>
+  
+  <script>
+  function copyCode(btn) {
+    const pre = btn.parentElement.querySelector('pre');
+    navigator.clipboard.writeText(pre.textContent).then(() => {
+      btn.textContent = 'Copied!';
+      btn.classList.add('copied');
+      setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 2000);
+    });
+  }
+  
+  // Smooth scroll for sidebar links
+  document.querySelectorAll('.sidebar a').forEach(a => {
+    a.addEventListener('click', e => {
+      e.preventDefault();
+      const target = document.querySelector(a.getAttribute('href'));
+      if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  });
+  </script>
+  
+  
+  
+  </body></html>

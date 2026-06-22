@@ -10,7 +10,7 @@ interface AuthContextValue {
   affiliate: AffiliateProfile | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string, rememberMe?: boolean) => Promise<void>;
   logout: () => void;
 }
 
@@ -53,8 +53,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = useCallback(
-    async (email: string, password: string) => {
-      const res = await api.login(email, password);
+    async (email: string, password: string, rememberMe = false) => {
+      const res = await api.login(email, password, rememberMe);
       localStorage.setItem(TOKEN_KEY, res.token);
       localStorage.setItem(AFFILIATE_KEY, JSON.stringify(res.affiliate));
       setToken(res.token);

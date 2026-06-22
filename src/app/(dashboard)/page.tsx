@@ -9,6 +9,7 @@ import StatsGrid from "@/components/StatsGrid";
 import Table, { type Column } from "@/components/Table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { api } from "@/lib/api";
+import { useAuth } from "@/lib/auth";
 import { getDefaultPeriod, periodToDateRange } from "@/lib/dates";
 import { formatPrice } from "@/lib/utils";
 import type { DashboardSummary } from "@/types/api";
@@ -32,12 +33,11 @@ const topCarsColumns: Column<TopCarRow>[] = [
   { id: "model", header: "Car Model", accessor: "model" },
 ];
 
-function changeSubtext(changePercent: number | undefined): { subtext: string; subtextColor: "green" | "red" } {
-  const pct = changePercent ?? 0;
-  const sign = pct >= 0 ? "+" : "";
+function changeSubtext(changePercent: number): { subtext: string; subtextColor: "green" | "red" } {
+  const sign = changePercent >= 0 ? "+" : "";
   return {
-    subtext: `${sign}${pct}% from last month`,
-    subtextColor: pct >= 0 ? "green" : "red",
+    subtext: `${sign}${changePercent.toFixed(1)}% from last month`,
+    subtextColor: changePercent >= 0 ? "green" : "red",
   };
 }
 
@@ -95,17 +95,27 @@ function buildDeliveryStats(data: DashboardSummary): StatCard[] {
       subtext: revenueChange.subtext,
       subtextColor: revenueChange.subtextColor,
     },
-    {
-      label: "Total Commission",
-      value: formatPrice(data.expectedCommission.value),
-      valueSuffix: "Excl. VAT",
-      subtext: commissionChange.subtext,
-      subtextColor: commissionChange.subtextColor,
-    },
+    data.allRentalsEnded
+      ? {
+          label: "Total Commission",
+          value: formatPrice(data.expectedCommission.value),
+          valueSuffix: "Excl. VAT",
+          subtext: commissionChange.subtext,
+          subtextColor: commissionChange.subtextColor,
+        }
+      : {
+          label: "Expected Commission",
+          value: formatPrice(data.expectedCommission.value),
+          valueSuffix: "Excl. VAT",
+          subtext: commissionChange.subtext,
+          subtextColor: commissionChange.subtextColor,
+          info: "Your projected commission based on confirmed bookings in the selected period. Final amounts are confirmed once all deliveries are closed.",
+        },
   ];
 }
 
 export default function Home() {
+  const { affiliate } = useAuth();
   const [period, setPeriod] = useState(getDefaultPeriod());
   const [data, setData] = useState<DashboardSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -129,18 +139,13 @@ export default function Home() {
     fetchData(period);
   }, [period, fetchData]);
 
-  // Only show skeleton on initial load (no data yet)
-  if (!data && isFetching) {
-    return <DashboardSkeleton />;
-  }
-
   if (!data && error) {
     return (
       <Banner level="error" message={error} items={["Please try again or contact support if the issue persists."]} />
     );
   }
 
-  if (!data) return null;
+  const isInitialLoad = !data;
 
   return (
     <Tabs defaultValue="booking-data" className="w-full">
@@ -154,26 +159,46 @@ export default function Home() {
 
         <div className="flex items-center gap-3 px-4 py-3 rounded-lg bg-[#eff6ff] border border-[#bedbff] sm:ml-auto">
           <IconComponent icon="Info" className="text-primary shrink-0" />
-          <p className="text-sm font-bold text-[#1c398e]">Your commission is X%</p>
+          <p className="text-sm font-bold text-[#1c398e]">
+            Your commission is {affiliate?.commissionPercent != null ? `${affiliate.commissionPercent}%` : "—"}
+          </p>
         </div>
       </div>
 
       <TabsContent value="booking-data">
         <div className="space-y-6">
-          <StatsGrid stats={buildBookingStats(data)} loading={isFetching} />
+          <StatsGrid
+            stats={data ? buildBookingStats(data) : placeholderBookingStats}
+            loading={isInitialLoad || isFetching}
+          />
 
-          <BookingTypesDistribution distribution={data.bookingTypeDistribution} />
+          {data ? (
+            <BookingTypesDistribution distribution={data.bookingTypeDistribution} />
+          ) : (
+            <BookingTypesDistributionSkeleton />
+          )}
 
-          <Table title="Top 5 Cars" icon="Car" columns={topCarsColumns} data={data.topCars} />
+          {data ? (
+            <Table title="Top 5 Cars" icon="Car" columns={topCarsColumns} data={data.topCars} />
+          ) : (
+            <TopCarsTableSkeleton />
+          )}
 
           <Banner level="info" message="Number of bookings and revenue may change due to cancellations." />
         </div>
       </TabsContent>
       <TabsContent value="delivery-data">
         <div className="space-y-6">
-          <StatsGrid stats={buildDeliveryStats(data)} loading={isFetching} />
+          <StatsGrid
+            stats={data ? buildDeliveryStats(data) : placeholderDeliveryStats}
+            loading={isInitialLoad || isFetching}
+          />
 
-          <Table title="Top 5 Cars" icon="Car" columns={topCarsColumns} data={data.topCars} />
+          {data ? (
+            <Table title="Top 5 Cars" icon="Car" columns={topCarsColumns} data={data.topCars} />
+          ) : (
+            <TopCarsTableSkeleton />
+          )}
 
           <Banner
             level="info"
@@ -185,16 +210,57 @@ export default function Home() {
   );
 }
 
-function DashboardSkeleton() {
+const placeholderBookingStats: StatCard[] = [
+  { label: "Total Bookings", value: "", subtext: "" },
+  { label: "Total Revenue", value: "", subtext: "" },
+  { label: "Expected Commission", value: "", subtext: "" },
+  { label: "Total Clicks", value: "", subtext: "" },
+];
+
+const placeholderDeliveryStats: StatCard[] = [
+  { label: "Total Deliveries", value: "", subtext: "" },
+  { label: "Total Revenue", value: "", subtext: "" },
+  { label: "Expected Commission", value: "", subtext: "" },
+];
+
+function BookingTypesDistributionSkeleton() {
   return (
-    <div className="space-y-6 animate-pulse">
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="bg-white border rounded-lg p-6 h-28" />
+    <div className="bg-white border border-[#e5e7eb] rounded-lg px-6 pt-6 pb-6 flex flex-col gap-6 animate-pulse">
+      <div className="h-6 w-56 bg-muted rounded" />
+      <div className="flex flex-col gap-4">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <div key={i} className="flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              <div className="h-4 w-20 bg-muted rounded" />
+              <div className="h-4 w-16 bg-muted rounded" />
+            </div>
+            <div className="h-2 bg-muted rounded-lg" />
+          </div>
         ))}
       </div>
-      <div className="bg-white border rounded-lg p-6 h-48" />
-      <div className="bg-white border rounded-lg p-6 h-64" />
+    </div>
+  );
+}
+
+function TopCarsTableSkeleton() {
+  return (
+    <div className="bg-card border border-light-gray rounded-lg px-6 pt-6 pb-px flex flex-col gap-6 animate-pulse">
+      <div className="flex items-center gap-2">
+        <div className="size-5 bg-muted rounded" />
+        <div className="h-6 w-24 bg-muted rounded" />
+      </div>
+      <div>
+        <div className="border-b border-light-gray flex gap-4 px-4 py-3">
+          <div className="h-4 w-12 bg-muted rounded" />
+          <div className="h-4 w-20 bg-muted rounded" />
+        </div>
+        {Array.from({ length: 5 }).map((_, i) => (
+          <div key={i} className="border-b border-[#f3f4f6] flex items-center gap-4 px-4 py-4">
+            <div className="size-8 bg-muted rounded-full" />
+            <div className="h-4 w-40 bg-muted rounded" />
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

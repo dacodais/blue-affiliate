@@ -15,117 +15,11 @@ import {
 } from "@/components/ui/dialog";
 import { Heading1 } from "@/components/ui/typography";
 import { ApiClientError, api } from "@/lib/api";
+import { formatMonthYear, formatShortDate } from "@/lib/dates";
 import { cn, formatPrice } from "@/lib/utils";
-import type { PayoutStatus, PayoutsData } from "@/types/api";
+import type { CommissionMonth, IndividualRental, PayoutStatus, PayoutsData } from "@/types/api";
 
 const MIN_PAYOUT = 50_000;
-
-type CommissionMonthStatus = "confirmed" | "pending";
-
-type IndividualRental = {
-  id: string;
-  startDate: string;
-  endDate: string;
-  carModel: string;
-  revenue: number;
-  ratePercent: number;
-  commission: number;
-};
-
-type CommissionMonth = {
-  id: string;
-  month: string;
-  status: CommissionMonthStatus;
-  deliveriesClosed: number;
-  deliveriesTotal: number;
-  commission: number;
-  rentals?: IndividualRental[];
-};
-
-// FAKE DATA — the Blue Desk API doesn't yet expose per-month commission breakdowns
-// or individual rentals. Remove once docs/api-gaps.md items land.
-const sampleCommissionMonths: CommissionMonth[] = [
-  {
-    id: "2026-04",
-    month: "April 2026",
-    status: "pending",
-    deliveriesClosed: 12,
-    deliveriesTotal: 45,
-    commission: 18500,
-  },
-  {
-    id: "2026-03",
-    month: "March 2026",
-    status: "pending",
-    deliveriesClosed: 38,
-    deliveriesTotal: 52,
-    commission: 21200,
-  },
-  {
-    id: "2026-02",
-    month: "February 2026",
-    status: "confirmed",
-    deliveriesClosed: 48,
-    deliveriesTotal: 48,
-    commission: 19800,
-    rentals: [
-      { id: "R-2026-0245", startDate: "Feb 1", endDate: "Feb 5", carModel: "Toyota RAV4", revenue: 89500, ratePercent: 5, commission: 4475 },
-      { id: "R-2026-0247", startDate: "Feb 2", endDate: "Feb 8", carModel: "Suzuki Jimny", revenue: 76200, ratePercent: 5, commission: 3810 },
-      { id: "R-2026-0251", startDate: "Feb 3", endDate: "Feb 7", carModel: "Kia Sportage", revenue: 67800, ratePercent: 5, commission: 3390 },
-      { id: "R-2026-0253", startDate: "Feb 5", endDate: "Feb 12", carModel: "Dacia Duster", revenue: 52100, ratePercent: 5, commission: 2605 },
-      { id: "R-2026-0258", startDate: "Feb 6", endDate: "Feb 10", carModel: "Hyundai Tucson", revenue: 71300, ratePercent: 5, commission: 3565 },
-      { id: "R-2026-0262", startDate: "Feb 8", endDate: "Feb 14", carModel: "Toyota RAV4", revenue: 35900, ratePercent: 5, commission: 1955 },
-    ],
-  },
-  {
-    id: "2026-01",
-    month: "January 2026",
-    status: "confirmed",
-    deliveriesClosed: 56,
-    deliveriesTotal: 56,
-    commission: 22650,
-    rentals: [
-      { id: "R-2026-0112", startDate: "Jan 2", endDate: "Jan 7", carModel: "Toyota RAV4", revenue: 82400, ratePercent: 5, commission: 4120 },
-      { id: "R-2026-0124", startDate: "Jan 4", endDate: "Jan 11", carModel: "Volkswagen Golf", revenue: 68900, ratePercent: 5, commission: 3445 },
-      { id: "R-2026-0136", startDate: "Jan 8", endDate: "Jan 15", carModel: "Kia Sportage", revenue: 91300, ratePercent: 5, commission: 4565 },
-      { id: "R-2026-0148", startDate: "Jan 12", endDate: "Jan 19", carModel: "Suzuki Vitara", revenue: 73200, ratePercent: 5, commission: 3660 },
-      { id: "R-2026-0159", startDate: "Jan 17", endDate: "Jan 22", carModel: "Dacia Duster", revenue: 55800, ratePercent: 5, commission: 2790 },
-      { id: "R-2026-0172", startDate: "Jan 22", endDate: "Jan 28", carModel: "Hyundai Tucson", revenue: 81400, ratePercent: 5, commission: 4070 },
-    ],
-  },
-  {
-    id: "2025-12",
-    month: "December 2025",
-    status: "confirmed",
-    deliveriesClosed: 68,
-    deliveriesTotal: 68,
-    commission: 28400,
-    rentals: [
-      { id: "R-2025-1208", startDate: "Dec 1", endDate: "Dec 8", carModel: "Toyota Land Cruiser", revenue: 128500, ratePercent: 5, commission: 6425 },
-      { id: "R-2025-1219", startDate: "Dec 4", endDate: "Dec 10", carModel: "Volkswagen Tiguan", revenue: 87300, ratePercent: 5, commission: 4365 },
-      { id: "R-2025-1227", startDate: "Dec 9", endDate: "Dec 15", carModel: "Kia Sportage", revenue: 74600, ratePercent: 5, commission: 3730 },
-      { id: "R-2025-1235", startDate: "Dec 14", endDate: "Dec 21", carModel: "Hyundai Tucson", revenue: 92100, ratePercent: 5, commission: 4605 },
-      { id: "R-2025-1243", startDate: "Dec 20", endDate: "Dec 27", carModel: "Suzuki Vitara", revenue: 81800, ratePercent: 5, commission: 4090 },
-      { id: "R-2025-1258", startDate: "Dec 26", endDate: "Dec 31", carModel: "Toyota RAV4", revenue: 103700, ratePercent: 5, commission: 5185 },
-    ],
-  },
-  {
-    id: "2025-11",
-    month: "November 2025",
-    status: "confirmed",
-    deliveriesClosed: 61,
-    deliveriesTotal: 61,
-    commission: 24750,
-    rentals: [
-      { id: "R-2025-1104", startDate: "Nov 2", endDate: "Nov 6", carModel: "Volkswagen Golf", revenue: 64200, ratePercent: 5, commission: 3210 },
-      { id: "R-2025-1117", startDate: "Nov 5", endDate: "Nov 12", carModel: "Dacia Duster", revenue: 58900, ratePercent: 5, commission: 2945 },
-      { id: "R-2025-1125", startDate: "Nov 9", endDate: "Nov 15", carModel: "Toyota RAV4", revenue: 88600, ratePercent: 5, commission: 4430 },
-      { id: "R-2025-1134", startDate: "Nov 14", endDate: "Nov 20", carModel: "Kia Sportage", revenue: 79100, ratePercent: 5, commission: 3955 },
-      { id: "R-2025-1146", startDate: "Nov 18", endDate: "Nov 24", carModel: "Suzuki Jimny", revenue: 62800, ratePercent: 5, commission: 3140 },
-      { id: "R-2025-1163", startDate: "Nov 23", endDate: "Nov 30", carModel: "Hyundai Tucson", revenue: 141400, ratePercent: 5, commission: 7070 },
-    ],
-  },
-];
 
 const statusStyles: Record<PayoutStatus, { bg: string; icon: string }> = {
   paid: { bg: "bg-success-bg text-success", icon: "CircleCheck" },
@@ -148,6 +42,7 @@ function formatIsoDate(iso: string): string {
 
 export default function PayoutPage() {
   const [data, setData] = useState<PayoutsData | null>(null);
+  const [months, setMonths] = useState<CommissionMonth[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -157,8 +52,9 @@ export default function PayoutPage() {
     setIsLoading(true);
     setError(null);
     try {
-      const result = await api.getPayouts();
-      setData(result);
+      const [payouts, commissionMonths] = await Promise.all([api.getPayouts(), api.getPayoutMonths()]);
+      setData(payouts);
+      setMonths(commissionMonths);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load payout data");
     } finally {
@@ -170,11 +66,11 @@ export default function PayoutPage() {
     fetchData();
   }, [fetchData]);
 
-  async function handleSubmitSelected(totalAmount: number): Promise<boolean> {
+  async function handleSubmitSelected(monthIds: string[]): Promise<boolean> {
     setSubmitError(null);
     setIsSubmitting(true);
     try {
-      await api.requestPayout(totalAmount);
+      await api.requestPayout(monthIds);
       await fetchData();
       return true;
     } catch (err) {
@@ -219,7 +115,8 @@ export default function PayoutPage() {
             <p className="text-white">{data ? formatPrice(data.availableBalance) : "-"}</p>
           )}
           <p className="text-secondary-muted text-sm">
-            {data?.confirmedMonths ?? 0} confirmed months • Minimum payout: {formatPrice(MIN_PAYOUT)}
+            {data ? `${data.confirmedMonths} confirmed ${data.confirmedMonths === 1 ? "month" : "months"}` : "—"} •
+            Minimum payout: {formatPrice(MIN_PAYOUT)}
           </p>
         </div>
 
@@ -231,14 +128,15 @@ export default function PayoutPage() {
           {isLoading ? (
             <div className="animate-pulse h-6 w-40 bg-muted rounded" />
           ) : (
-            <p>{data?.pendingAmount != null ? formatPrice(data.pendingAmount) : "-"}</p>
+            <p>{data ? formatPrice(data.pendingAmount) : "—"}</p>
           )}
           <p className="text-muted-foreground text-sm">Awaiting all deliveries to be returned and closed</p>
         </div>
       </section>
 
       <SelectCommissionMonths
-        months={sampleCommissionMonths}
+        months={months}
+        isLoading={isLoading}
         isSubmitting={isSubmitting}
         submitError={submitError}
         onSubmit={handleSubmitSelected}
@@ -326,15 +224,17 @@ export default function PayoutPage() {
 
 function SelectCommissionMonths({
   months,
+  isLoading,
   isSubmitting,
   submitError,
   onSubmit,
   className,
 }: {
   months: CommissionMonth[];
+  isLoading: boolean;
   isSubmitting: boolean;
   submitError: string | null;
-  onSubmit: (totalAmount: number) => Promise<boolean>;
+  onSubmit: (monthIds: string[]) => Promise<boolean>;
   className?: string;
 }) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -369,7 +269,7 @@ function SelectCommissionMonths({
   };
 
   const handleConfirm = async () => {
-    const success = await onSubmit(selectedTotal);
+    const success = await onSubmit(selectedMonths.map((m) => m.id));
     if (success) {
       setSelected(new Set());
       setIsConfirmOpen(false);
@@ -414,10 +314,32 @@ function SelectCommissionMonths({
             </tr>
           </thead>
           <tbody>
-            {months.map((m) => {
+            {isLoading
+              ? Array.from({ length: 4 }).map((_, i) => (
+                  <tr key={i} className="border-b border-[#f3f4f6]">
+                    <td className="py-4 pl-2 pr-2 w-10" />
+                    <td className="py-4 pr-4">
+                      <div className="animate-pulse size-[18px] bg-muted rounded-[3px]" />
+                    </td>
+                    <td className="py-4 pr-4">
+                      <div className="animate-pulse h-4 w-24 bg-muted rounded" />
+                    </td>
+                    <td className="py-4 pr-4">
+                      <div className="animate-pulse h-4 w-20 bg-muted rounded" />
+                    </td>
+                    <td className="py-4 pr-4 text-right">
+                      <div className="animate-pulse h-4 w-12 bg-muted rounded ml-auto" />
+                    </td>
+                    <td className="py-4 pl-4 text-right">
+                      <div className="animate-pulse h-4 w-20 bg-muted rounded ml-auto" />
+                    </td>
+                  </tr>
+                ))
+              : months.map((m) => {
               const isConfirmed = m.status === "confirmed";
               const isSelected = selected.has(m.id);
               const isExpanded = expanded.has(m.id);
+              const monthLabel = formatMonthYear(m.monthStart);
               return (
                 <Fragment key={m.id}>
                   <tr className={cn("border-b border-[#f3f4f6]", !isConfirmed && "opacity-60")}>
@@ -425,7 +347,7 @@ function SelectCommissionMonths({
                       {isConfirmed && (
                         <button
                           type="button"
-                          aria-label={isExpanded ? `Collapse ${m.month}` : `Expand ${m.month}`}
+                          aria-label={isExpanded ? `Collapse ${monthLabel}` : `Expand ${monthLabel}`}
                           aria-expanded={isExpanded}
                           onClick={() => toggleExpand(m.id)}
                           className="flex items-center justify-center size-6 rounded text-muted-foreground hover:bg-muted"
@@ -438,13 +360,13 @@ function SelectCommissionMonths({
                     </td>
                     <td className="py-4 pr-4">
                       <Checkbox
-                        aria-label={`Select ${m.month}`}
+                        aria-label={`Select ${monthLabel}`}
                         disabled={!isConfirmed}
                         checked={isSelected}
                         onCheckedChange={() => toggle(m)}
                       />
                     </td>
-                    <td className="py-4 pr-4 text-card-foreground">{m.month}</td>
+                    <td className="py-4 pr-4 text-card-foreground">{monthLabel}</td>
                     <td className="py-4 pr-4 text-[#364153] capitalize">
                       <span className="flex items-center gap-2">
                         <span
@@ -473,7 +395,7 @@ function SelectCommissionMonths({
                           <div className="overflow-hidden">
                             <div className="px-8 py-5">
                               <IndividualRentalsTable
-                                month={m.month}
+                                month={monthLabel}
                                 totalCommission={m.commission}
                                 rentals={m.rentals}
                               />
@@ -534,7 +456,7 @@ function SelectCommissionMonths({
             <ul className="divide-y divide-[#f3f4f6]">
               {selectedMonths.map((m) => (
                 <li key={m.id} className="flex items-center justify-between px-4 py-3 text-sm">
-                  <span className="text-card-foreground">{m.month}</span>
+                  <span className="text-card-foreground">{formatMonthYear(m.monthStart)}</span>
                   <span className="font-medium text-card-foreground">{formatPrice(m.commission)}</span>
                 </li>
               ))}
@@ -605,7 +527,7 @@ function IndividualRentalsTable({
               <tr key={r.id} className="border-b border-[#f3f4f6] last:border-b-0">
                 <td className="px-3 py-2.5 text-card-foreground">{r.id}</td>
                 <td className="px-3 py-2.5 text-card-foreground">
-                  {r.startDate} → {r.endDate}
+                  {formatShortDate(r.startDate)} → {formatShortDate(r.endDate)}
                 </td>
                 <td className="px-3 py-2.5 text-card-foreground">{r.carModel}</td>
                 <td className="px-3 py-2.5 text-right text-card-foreground">{formatPrice(r.revenue)}</td>

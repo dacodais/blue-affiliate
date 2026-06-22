@@ -1,12 +1,13 @@
-import { notFound } from "next/navigation";
+import { SliceZone } from "@prismicio/react";
+import dayjs from "dayjs";
 import Image from "next/image";
 import Link from "next/link";
-import { PrismicRichText } from "@prismicio/react";
-import { createClient } from "@/prismicio";
-import { Badge } from "@/components/ui/badge";
+import { notFound } from "next/navigation";
 import { IconComponent } from "@/components/Icon";
+import { Badge } from "@/components/ui/badge";
 import { formatDate } from "@/lib/utils";
-import dayjs from "dayjs";
+import { createClient } from "@/prismicio";
+import { components } from "@/slices";
 
 type Params = Promise<{ uid: string }>;
 
@@ -32,20 +33,14 @@ export async function generateStaticParams() {
 export default async function BlogPostPage({ params }: { params: Params }) {
   const { uid } = await params;
   const client = createClient();
-  const post = await client
-    .getByUID("blog_post", uid, {
-      fetchLinks: ["blog_category.name"],
-    })
-    .catch(() => null);
+  const post = await client.getByUID("blog_post", uid).catch(() => null);
 
   if (!post) notFound();
 
-  const { title, description, featured_image, category, read_time, published_date, body } = post.data;
+  const { title, description, image, category, published_date, slices } = post.data;
   const categoryName =
-    category && "data" in category && category.data
-      ? (category.data as { name?: string }).name
-      : null;
-  const imageUrl = featured_image.url ?? "";
+    category && "data" in category && category.data ? (category.data as { name?: string }).name : null;
+  const imageUrl = image.url ?? "";
 
   return (
     <article className="max-w-3xl">
@@ -58,8 +53,8 @@ export default async function BlogPostPage({ params }: { params: Params }) {
         <Image
           src={imageUrl}
           alt={title ?? ""}
-          width={featured_image.dimensions?.width ?? 800}
-          height={featured_image.dimensions?.height ?? 450}
+          width={image.dimensions?.width ?? 800}
+          height={image.dimensions?.height ?? 450}
           className="w-full rounded-lg object-cover mb-6"
           priority
         />
@@ -67,12 +62,6 @@ export default async function BlogPostPage({ params }: { params: Params }) {
 
       <div className="flex items-center gap-3 mb-4">
         {categoryName && <Badge>{categoryName}</Badge>}
-        {read_time != null && (
-          <div className="flex items-center gap-x-0.5 text-[#6A7282]">
-            <IconComponent icon="Clock" size="sm" />
-            <p className="text-sm">{read_time} min read</p>
-          </div>
-        )}
         {published_date && <p className="text-sm text-[#6A7282]">{formatDate(dayjs(published_date))}</p>}
       </div>
 
@@ -80,9 +69,7 @@ export default async function BlogPostPage({ params }: { params: Params }) {
 
       {description && <p className="text-lg text-muted-foreground mb-8">{description}</p>}
 
-      <div className="prose prose-lg max-w-none">
-        <PrismicRichText field={body} />
-      </div>
+      <SliceZone slices={slices} components={components} />
     </article>
   );
 }

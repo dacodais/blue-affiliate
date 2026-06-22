@@ -1,0 +1,54 @@
+{
+  "id": "faq_group",
+  "name": "FAQ Group",
+  "type": "SharedSlice",
+  "variations": [
+    {
+      "id": "default",
+      "name": "Default",
+      "description": "Default",
+      "docURL": "",
+      "imageUrl": "",
+      "version": "",
+      "primary": {
+        "title": {
+          "type": "Text",
+          "config": {
+            "label": "Title",
+            "placeholder": "e.g. How the Program Works"
+          }
+        },
+        "description": {
+          "type": "Text",
+          "config": {
+            "label": "Description",
+            "placeholder": "Short summary of this group"
+          }
+        },
+        "items": {
+          "type": "Group",
+          "config": {
+            "label": "Questions",
+            "fields": {
+              "question": {
+                "type": "Text",
+                "config": {
+                  "label": "Question",
+                  "placeholder": "e.g. How does the affiliate program work?"
+                }
+              },
+              "answer": {
+                "type": "StructuredText",
+                "config": {
+                  "label": "Answer",
+                  "multi": "paragraph,strong,em,hyperlink,list-item,o-list-item",
+                  "allowTargetBlank": true
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

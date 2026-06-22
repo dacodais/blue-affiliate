@@ -1,12 +1,10 @@
 import * as prismic from "@prismicio/client";
 import { enableAutoPreviews } from "@prismicio/next";
-import config from "../slicemachine.config.json";
+import config from "../prismic.config.json";
 
 export const repositoryName = process.env.NEXT_PUBLIC_PRISMIC_ENVIRONMENT ?? config.repositoryName;
 
-const routes: prismic.ClientConfig["routes"] = [
-  { type: "blog_post", path: "/academy/blog/:uid" },
-];
+const routes: prismic.ClientConfig["routes"] = [{ type: "blog_post", path: "/academy/blog/:uid" }];
 
 export const createClient = (clientConfig: prismic.ClientConfig = {}) => {
   const client = prismic.createClient(repositoryName, {

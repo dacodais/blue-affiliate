@@ -37,7 +37,7 @@ export default function LoginPage() {
     setIsSubmitting(true);
 
     try {
-      await login(email, password);
+      await login(email, password, remember);
     } catch (err) {
       if (err instanceof ApiClientError) {
         setError(err.message);
@@ -53,7 +53,11 @@ export default function LoginPage() {
     e.preventDefault();
     setError(null);
     setIsSubmitting(true);
-    // TODO: wire to POST /v1/affiliate/auth/forgot-password once it ships (see docs/api-gaps.md).
+    // STUB: no password-reset flow exists upstream yet. The BlueDesk partner API
+    // (blue-desk-affiliate-api.html) exposes only POST /auth/login — there is no
+    // forgot-password / reset-password endpoint, so this cannot be wired end-to-end.
+    // Blocked on BlueDesk adding the endpoint; until then this shows the "check your
+    // email" view without sending anything. See docs/api-gaps.md items 1 & 2.
     await new Promise((r) => setTimeout(r, 400));
     setIsSubmitting(false);
     setView("forgot-sent");

@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { api } from "@/lib/api";
 import { formatShortDate, getDefaultPeriod, periodToDateRange } from "@/lib/dates";
 import { cn, formatPrice } from "@/lib/utils";
-import type { DashboardSummary, EngagementData } from "@/types/api";
+import type { DashboardSummary, EngagementData, SubIdPerformanceRow } from "@/types/api";
 
 const clicksConfig = {
   clicks: {
@@ -26,91 +26,7 @@ const bookingsConfig = {
   },
 } satisfies ChartConfig;
 
-type SubIdRow = {
-  subId: string;
-  source: string;
-  medium: string;
-  campaign: string;
-  clicks: number;
-  bookings: number;
-  conversion: number;
-  revenue: number;
-};
-
-const sampleSubIdRows: SubIdRow[] = [
-  {
-    subId: "blog_post_1",
-    source: "website",
-    medium: "referral",
-    campaign: "content_marketing",
-    clicks: 2547,
-    bookings: 34,
-    conversion: 1.34,
-    revenue: 5780,
-  },
-  {
-    subId: "instagram_story",
-    source: "instagram",
-    medium: "social",
-    campaign: "summer2026",
-    clicks: 1893,
-    bookings: 28,
-    conversion: 1.48,
-    revenue: 4760,
-  },
-  {
-    subId: "youtube_desc",
-    source: "youtube",
-    medium: "video",
-    campaign: "review_channel",
-    clicks: 1654,
-    bookings: 19,
-    conversion: 1.15,
-    revenue: 3230,
-  },
-  {
-    subId: "facebook_ad",
-    source: "facebook",
-    medium: "paid_social",
-    campaign: "spring_promo",
-    clicks: 1234,
-    bookings: 25,
-    conversion: 2.03,
-    revenue: 4250,
-  },
-  {
-    subId: "email_newsletter",
-    source: "email",
-    medium: "newsletter",
-    campaign: "weekly_digest",
-    clicks: 987,
-    bookings: 15,
-    conversion: 1.52,
-    revenue: 2550,
-  },
-  {
-    subId: "twitter_bio",
-    source: "twitter",
-    medium: "social",
-    campaign: "bio_link",
-    clicks: 654,
-    bookings: 8,
-    conversion: 1.22,
-    revenue: 1360,
-  },
-  {
-    subId: "tiktok_link",
-    source: "tiktok",
-    medium: "social",
-    campaign: "creator_partnership",
-    clicks: 543,
-    bookings: 11,
-    conversion: 2.03,
-    revenue: 1870,
-  },
-];
-
-type SortKey = keyof SubIdRow;
+type SortKey = keyof SubIdPerformanceRow;
 type SortDirection = "asc" | "desc";
 
 function computeAxis(data: { value: number }[]): { domain: [number, number]; ticks: number[] } {
@@ -128,6 +44,7 @@ export default function PerformancePage() {
   const [period, setPeriod] = useState(getDefaultPeriod());
   const [engagement, setEngagement] = useState<EngagementData | null>(null);
   const [dashboard, setDashboard] = useState<DashboardSummary | null>(null);
+  const [subIdRows, setSubIdRows] = useState<SubIdPerformanceRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isFetching, setIsFetching] = useState(false);
 
@@ -136,9 +53,14 @@ export default function PerformancePage() {
     setError(null);
     try {
       const range = periodToDateRange(p);
-      const [engagementRes, dashboardRes] = await Promise.all([api.getEngagement(range), api.getDashboard(range)]);
+      const [engagementRes, dashboardRes, subIdsRes] = await Promise.all([
+        api.getEngagement(range),
+        api.getDashboard(range),
+        api.getSubIdPerformance(range),
+      ]);
       setEngagement(engagementRes);
       setDashboard(dashboardRes);
+      setSubIdRows(subIdsRes);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load performance data");
     } finally {
@@ -176,7 +98,7 @@ export default function PerformancePage() {
         <PeriodFilter value={period} onValueChange={setPeriod} inputClassName="h-9 sm:ml-auto" />
       </div>
 
-      {dashboard && <PerformanceStats data={dashboard} />}
+      <PerformanceStats data={dashboard} loading={isInitialLoad} />
 
       <section>
         {/* Desktop engagement charts */}
@@ -253,80 +175,102 @@ export default function PerformancePage() {
             </TabsList>
           </div>
 
-          {isInitialLoad ? (
-            <ChartSkeleton title="Loading..." subtitle="" />
-          ) : chartData && bookingsData && clicksAxis && bookingsAxis ? (
-            <>
-              <TabsContent value="clicks-per-day">
-                <div className="bg-white border border-light-gray rounded-2xl p-6">
-                  <p className="mb-1.25">Daily Click Traffic</p>
-                  <p className="text-[#6A7282] text-sm mb-5.25">Daily click traffic from affiliate links</p>
-                  <ChartContainer config={clicksConfig} className="lg:max-h-64 xl:max-h-80 w-full">
-                    <LineChart data={chartData}>
-                      <CartesianGrid vertical={false} stroke="var(--color-light-gray)" />
-                      <XAxis
-                        dataKey="date"
-                        tickLine={false}
-                        axisLine={false}
-                        tick={{ fill: "#999", fontSize: 11 }}
-                        padding={{ left: 0, right: 0 }}
-                      />
-                      <YAxis
-                        tickLine={false}
-                        axisLine={false}
-                        tick={{ fill: "#999", fontSize: 11 }}
-                        domain={clicksAxis.domain}
-                        ticks={clicksAxis.ticks}
-                        width={32}
-                      />
-                      <ChartTooltip content={<ChartTooltipContent />} />
-                      <Line type="monotone" dataKey="clicks" stroke="var(--color-clicks)" strokeWidth={2} dot={false} />
-                    </LineChart>
-                  </ChartContainer>
-                </div>
-              </TabsContent>
-              <TabsContent value="bookings-created">
-                <div className="bg-white border border-light-gray rounded-2xl p-6">
-                  <p className="mb-1.25">Daily Bookings</p>
-                  <p className="text-[#6A7282] text-sm mb-5.25">New bookings generated through your affiliate links</p>
-                  <ChartContainer config={bookingsConfig} className="lg:max-h-64 xl:max-h-80 w-full">
-                    <BarChart data={bookingsData}>
-                      <CartesianGrid vertical={false} stroke="var(--color-light-gray)" />
-                      <XAxis
-                        dataKey="date"
-                        tickLine={false}
-                        axisLine={false}
-                        tick={{ fill: "#999", fontSize: 11 }}
-                        padding={{ left: 0, right: 0 }}
-                      />
-                      <YAxis
-                        tickLine={false}
-                        axisLine={false}
-                        tick={{ fill: "#999", fontSize: 11 }}
-                        domain={bookingsAxis.domain}
-                        ticks={bookingsAxis.ticks}
-                        width={32}
-                      />
-                      <ChartTooltip content={<ChartTooltipContent />} />
-                      <Bar dataKey="bookings" fill="var(--color-bookings)" radius={[3, 3, 0, 0]} />
-                    </BarChart>
-                  </ChartContainer>
-                </div>
-              </TabsContent>
-            </>
-          ) : null}
+          <TabsContent value="clicks-per-day">
+            {isInitialLoad ? (
+              <ChartSkeleton title="Daily Click Traffic" subtitle="Daily click traffic from affiliate links" />
+            ) : chartData && clicksAxis ? (
+              <div className="bg-white border border-light-gray rounded-2xl p-6">
+                <p className="mb-1.25">Daily Click Traffic</p>
+                <p className="text-[#6A7282] text-sm mb-5.25">Daily click traffic from affiliate links</p>
+                <ChartContainer config={clicksConfig} className="lg:max-h-64 xl:max-h-80 w-full">
+                  <LineChart data={chartData}>
+                    <CartesianGrid vertical={false} stroke="var(--color-light-gray)" />
+                    <XAxis
+                      dataKey="date"
+                      tickLine={false}
+                      axisLine={false}
+                      tick={{ fill: "#999", fontSize: 11 }}
+                      padding={{ left: 0, right: 0 }}
+                    />
+                    <YAxis
+                      tickLine={false}
+                      axisLine={false}
+                      tick={{ fill: "#999", fontSize: 11 }}
+                      domain={clicksAxis.domain}
+                      ticks={clicksAxis.ticks}
+                      width={32}
+                    />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <Line type="monotone" dataKey="clicks" stroke="var(--color-clicks)" strokeWidth={2} dot={false} />
+                  </LineChart>
+                </ChartContainer>
+              </div>
+            ) : null}
+          </TabsContent>
+          <TabsContent value="bookings-created">
+            {isInitialLoad ? (
+              <ChartSkeleton title="Daily Bookings" subtitle="New bookings generated through your affiliate links" />
+            ) : bookingsData && bookingsAxis ? (
+              <div className="bg-white border border-light-gray rounded-2xl p-6">
+                <p className="mb-1.25">Daily Bookings</p>
+                <p className="text-[#6A7282] text-sm mb-5.25">New bookings generated through your affiliate links</p>
+                <ChartContainer config={bookingsConfig} className="lg:max-h-64 xl:max-h-80 w-full">
+                  <BarChart data={bookingsData}>
+                    <CartesianGrid vertical={false} stroke="var(--color-light-gray)" />
+                    <XAxis
+                      dataKey="date"
+                      tickLine={false}
+                      axisLine={false}
+                      tick={{ fill: "#999", fontSize: 11 }}
+                      padding={{ left: 0, right: 0 }}
+                    />
+                    <YAxis
+                      tickLine={false}
+                      axisLine={false}
+                      tick={{ fill: "#999", fontSize: 11 }}
+                      domain={bookingsAxis.domain}
+                      ticks={bookingsAxis.ticks}
+                      width={32}
+                    />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <Bar dataKey="bookings" fill="var(--color-bookings)" radius={[3, 3, 0, 0]} />
+                  </BarChart>
+                </ChartContainer>
+              </div>
+            ) : null}
+          </TabsContent>
         </Tabs>
       </section>
 
-      <SubIdPerformance rows={sampleSubIdRows} className="mt-6 sm:mt-10 mb-10" />
+      <SubIdPerformance
+        rows={subIdRows ?? []}
+        loading={isInitialLoad || (isFetching && !subIdRows)}
+        className="mt-6 sm:mt-10 mb-10"
+      />
 
       <Banner level="info" message="Number of bookings and revenue may change due to cancellations." />
     </Fragment>
   );
 }
 
-function PerformanceStats({ data }: { data: DashboardSummary }) {
-  const cards: { label: string; value: string; change: number | undefined }[] = [
+const performanceCardLabels = ["Total Clicks", "Total Bookings", "Total Revenue", "Avg Conversion Rate"];
+
+function PerformanceStats({ data, loading }: { data: DashboardSummary | null; loading: boolean }) {
+  if (loading || !data) {
+    return (
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6 mb-10">
+        {performanceCardLabels.map((label) => (
+          <div key={label} className="bg-card border border-light-gray rounded-2xl p-6 flex flex-col gap-2">
+            <p className="text-sm text-[#6a7282]">{label}</p>
+            <div className="animate-pulse h-10 w-32 bg-muted rounded" />
+            <div className="animate-pulse h-4 w-28 bg-muted rounded" />
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  const cards: { label: string; value: string; change: number }[] = [
     {
       label: "Total Clicks",
       value: data.totalClicks.value.toLocaleString(),
@@ -345,22 +289,21 @@ function PerformanceStats({ data }: { data: DashboardSummary }) {
     {
       label: "Avg Conversion Rate",
       value: `${data.totalClicks.conversionPercent.toFixed(2)}%`,
-      change: undefined,
+      change: data.totalClicks.conversionChangePercent,
     },
   ];
 
   return (
     <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6 mb-10">
       {cards.map((card) => {
-        const pct = card.change ?? 0;
-        const positive = pct >= 0;
+        const positive = card.change >= 0;
         return (
           <div key={card.label} className="bg-card border border-light-gray rounded-2xl p-6 flex flex-col gap-2">
             <p className="text-sm text-[#6a7282]">{card.label}</p>
             <p className="text-[32px] leading-[48px] font-medium">{card.value}</p>
             <p className={cn("text-xs", positive ? "text-[#16a34a]" : "text-[#dc2626]")}>
               {positive ? "+" : ""}
-              {pct.toFixed(1)}% vs last month
+              {card.change.toFixed(1)}% vs last month
             </p>
           </div>
         );
@@ -369,8 +312,16 @@ function PerformanceStats({ data }: { data: DashboardSummary }) {
   );
 }
 
-function SubIdPerformance({ rows, className }: { rows: SubIdRow[]; className?: string }) {
-  const [sortKey, setSortKey] = useState<SortKey>("revenue");
+function SubIdPerformance({
+  rows,
+  loading,
+  className,
+}: {
+  rows: SubIdPerformanceRow[];
+  loading: boolean;
+  className?: string;
+}) {
+  const [sortKey, setSortKey] = useState<SortKey>("clicks");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
 
   const handleSort = (key: SortKey) => {
@@ -387,12 +338,14 @@ function SubIdPerformance({ rows, className }: { rows: SubIdRow[]; className?: s
     copy.sort((a, b) => {
       const av = a[sortKey];
       const bv = b[sortKey];
+      // Nulls (not-yet-available metrics) always sort to the bottom.
+      if (av === null && bv === null) return 0;
+      if (av === null) return 1;
+      if (bv === null) return -1;
       if (typeof av === "number" && typeof bv === "number") {
         return sortDirection === "asc" ? av - bv : bv - av;
       }
-      return sortDirection === "asc"
-        ? String(av).localeCompare(String(bv))
-        : String(bv).localeCompare(String(av));
+      return sortDirection === "asc" ? String(av).localeCompare(String(bv)) : String(bv).localeCompare(String(av));
     });
     return copy;
   }, [rows, sortKey, sortDirection]);
@@ -404,7 +357,7 @@ function SubIdPerformance({ rows, className }: { rows: SubIdRow[]; className?: s
     { key: "campaign", label: "Campaign", align: "left" },
     { key: "clicks", label: "Clicks", align: "right" },
     { key: "bookings", label: "Bookings", align: "right" },
-    { key: "conversion", label: "Conversion", align: "right" },
+    { key: "conversionPercent", label: "Conversion", align: "right" },
     { key: "revenue", label: "Revenue", align: "right" },
   ];
 
@@ -423,10 +376,7 @@ function SubIdPerformance({ rows, className }: { rows: SubIdRow[]; className?: s
                 const isActive = sortKey === col.key;
                 const Arrow = isActive ? (sortDirection === "asc" ? ArrowUp : ArrowDown) : ArrowUpDown;
                 return (
-                  <th
-                    key={col.key}
-                    className={cn("py-2", col.align === "left" ? "text-left pr-4" : "text-right px-4")}
-                  >
+                  <th key={col.key} className={cn("py-2", col.align === "left" ? "text-left pr-4" : "text-right px-4")}>
                     <button
                       type="button"
                       onClick={() => handleSort(col.key)}
@@ -445,18 +395,48 @@ function SubIdPerformance({ rows, className }: { rows: SubIdRow[]; className?: s
             </tr>
           </thead>
           <tbody>
-            {sortedRows.map((row) => (
-              <tr key={row.subId} className="border-b border-light-gray last:border-b-0">
-                <td className="py-4 pr-4 font-medium">{row.subId}</td>
-                <td className="py-4 pr-4">{row.source}</td>
-                <td className="py-4 pr-4">{row.medium}</td>
-                <td className="py-4 pr-4">{row.campaign}</td>
-                <td className="py-4 px-4 text-right">{row.clicks.toLocaleString()}</td>
-                <td className="py-4 px-4 text-right">{row.bookings.toLocaleString()}</td>
-                <td className="py-4 px-4 text-right">{row.conversion.toFixed(2)}%</td>
-                <td className="py-4 pl-4 text-right font-medium">{formatPrice(row.revenue)}</td>
+            {loading ? (
+              [0, 1, 2, 3, 4].map((i) => (
+                <tr key={i} className="border-b border-light-gray last:border-b-0">
+                  {columns.map((col) => (
+                    <td key={col.key} className={cn("py-4", col.align === "left" ? "pr-4" : "px-4")}>
+                      <div
+                        className={cn(
+                          "animate-pulse h-4 bg-muted rounded",
+                          col.align === "right" ? "ml-auto w-12" : "w-24",
+                        )}
+                      />
+                    </td>
+                  ))}
+                </tr>
+              ))
+            ) : sortedRows.length === 0 ? (
+              <tr>
+                <td colSpan={columns.length} className="py-10 text-center text-sm text-[#6a7282]">
+                  No sub-ID traffic recorded for this period. Add <code className="font-mono">?sub=your_tag</code> to
+                  your links to start tracking.
+                </td>
               </tr>
-            ))}
+            ) : (
+              sortedRows.map((row) => (
+                <tr key={row.subId} className="border-b border-light-gray last:border-b-0">
+                  <td className="py-4 pr-4 font-medium">{row.subId}</td>
+                  <td className="py-4 pr-4">{row.source}</td>
+                  <td className="py-4 pr-4">{row.medium}</td>
+                  <td className="py-4 pr-4">{row.campaign}</td>
+                  <td className="py-4 px-4 text-right">{row.clicks.toLocaleString()}</td>
+                  <td className="py-4 px-4 text-right">
+                    {row.bookings === null ? "—" : row.bookings.toLocaleString()}
+                  </td>
+                  <td className="py-4 px-4 text-right">
+                    {row.conversionPercent === null ? "—" : `${row.conversionPercent.toFixed(2)}%`}
+                  </td>
+                  <td className="py-4 pl-4 text-right font-medium">
+                    {row.revenue === null ? "—" : formatPrice(row.revenue)}
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>

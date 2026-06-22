@@ -20,26 +20,11 @@
           "placeholder": "Short description of the video"
         }
       },
-      "thumbnail": {
-        "type": "Image",
+      "video": {
+        "type": "Link",
         "config": {
-          "label": "Thumbnail",
-          "constraint": {},
-          "thumbnails": []
-        }
-      },
-      "views": {
-        "type": "Number",
-        "config": {
-          "label": "Views",
-          "placeholder": "Number of views"
-        }
-      },
-      "video_url": {
-        "type": "Text",
-        "config": {
-          "label": "Video URL",
-          "placeholder": "YouTube or Vimeo embed URL"
+          "label": "Video",
+          "select": "media"
         }
       }
     }

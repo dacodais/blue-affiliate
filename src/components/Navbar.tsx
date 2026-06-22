@@ -4,8 +4,11 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import { formatRelativeTime } from "@/lib/dates";
 import { cn } from "@/lib/utils";
+import type { Notification } from "@/types/api";
 import BankAccount from "./BankAccount";
 import CopyButton from "./CopyButton";
 import { IconComponent } from "./Icon";
@@ -21,50 +24,30 @@ const navigation = [
   { name: "Log-out", href: "#", icon: "LogOut", action: "logout" as const },
 ];
 
-type Notification = {
-  id: number;
-  title: string;
-  body: string;
-  timeAgo: string;
-  read: boolean;
-};
-
-const initialNotifications: Notification[] = [
-  {
-    id: 1,
-    title: "Payout Approved",
-    body: "Your payout request for 52,100 Kr has been approved and will be processed on the next payment date.",
-    timeAgo: "3h ago",
-    read: false,
-  },
-  {
-    id: 2,
-    title: "Commission Milestone Reached",
-    body: "Congratulations! You've earned over 100,000 Kr in total commissions.",
-    timeAgo: "1d ago",
-    read: false,
-  },
-  {
-    id: 3,
-    title: "New Marketing Material Available",
-    body: "New summer campaign banners and social media templates are now available in the Marketing Material section.",
-    timeAgo: "5d ago",
-    read: true,
-  },
-  {
-    id: 4,
-    title: "February Commission Confirmed",
-    body: "All deliveries for February 2026 have been completed. Your commission (19,800 Kr) is now available for payout.",
-    timeAgo: "9d ago",
-    read: true,
-  },
-];
-
 function NotificationBell() {
   const [open, setOpen] = useState(false);
-  const [notifications, setNotifications] = useState(initialNotifications);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [loaded, setLoaded] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const unreadCount = notifications.filter((n) => !n.read).length;
+
+  useEffect(() => {
+    let active = true;
+    api
+      .getNotifications()
+      .then((list) => {
+        if (active) setNotifications(list);
+      })
+      .catch(() => {
+        /* keep the bell quiet on failure rather than surfacing an error */
+      })
+      .finally(() => {
+        if (active) setLoaded(true);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -83,6 +66,20 @@ function NotificationBell() {
       document.removeEventListener("keydown", handleKey);
     };
   }, [open]);
+
+  const markAllRead = async () => {
+    if (unreadCount === 0) return;
+    setNotifications((list) => list.map((n) => ({ ...n, read: true })));
+    try {
+      await api.markAllNotificationsRead();
+    } catch {
+      // Re-fetch to resync if the server rejected the change.
+      api
+        .getNotifications()
+        .then(setNotifications)
+        .catch(() => {});
+    }
+  };
 
   return (
     <div ref={ref} className="relative">
@@ -106,31 +103,38 @@ function NotificationBell() {
             <h2 className="font-heading text-base uppercase text-card-foreground">Notifications</h2>
             <button
               type="button"
-              onClick={() => setNotifications((list) => list.map((n) => ({ ...n, read: true })))}
-              className="text-xs text-secondary hover:underline"
+              onClick={markAllRead}
+              disabled={unreadCount === 0}
+              className="text-xs text-secondary hover:underline disabled:text-muted-foreground disabled:no-underline"
             >
               Mark all read
             </button>
           </div>
           <ul className="max-h-[510px] overflow-y-auto">
-            {notifications.map((n) => (
-              <li
-                key={n.id}
-                className={cn(
-                  "relative px-4 py-4 border-b border-light-gray/60 last:border-b-0",
-                  !n.read && "bg-[#fffbf0]",
-                )}
-              >
-                <div className="flex items-start gap-3 pr-4">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-card-foreground">{n.title}</p>
-                    <p className="mt-1 text-xs text-muted-foreground">{n.body}</p>
-                    <p className="mt-2 text-[11px] text-[#6a7282]">{n.timeAgo}</p>
-                  </div>
-                  {!n.read && <span className="mt-1 shrink-0 size-2 rounded-full bg-secondary" aria-hidden />}
-                </div>
+            {notifications.length === 0 ? (
+              <li className="px-4 py-8 text-center text-sm text-muted-foreground">
+                {loaded ? "You're all caught up." : "Loading…"}
               </li>
-            ))}
+            ) : (
+              notifications.map((n) => (
+                <li
+                  key={n.id}
+                  className={cn(
+                    "relative px-4 py-4 border-b border-light-gray/60 last:border-b-0",
+                    !n.read && "bg-[#fffbf0]",
+                  )}
+                >
+                  <div className="flex items-start gap-3 pr-4">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-card-foreground">{n.title}</p>
+                      <p className="mt-1 text-xs text-muted-foreground">{n.body}</p>
+                      <p className="mt-2 text-[11px] text-[#6a7282]">{formatRelativeTime(n.createdAt)}</p>
+                    </div>
+                    {!n.read && <span className="mt-1 shrink-0 size-2 rounded-full bg-secondary" aria-hidden />}
+                  </div>
+                </li>
+              ))
+            )}
           </ul>
         </div>
       )}
@@ -199,7 +203,11 @@ export default function Navbar() {
 
       {/* Mobile sheet */}
       <Sheet open={open} onOpenChange={setOpen}>
-        <SheetContent side="left" showCloseButton={false} className="data-[side=left]:w-full data-[side=left]:sm:max-w-full border-0 p-0 bg-background">
+        <SheetContent
+          side="left"
+          showCloseButton={false}
+          className="data-[side=left]:w-full data-[side=left]:sm:max-w-full border-0 p-0 bg-background"
+        >
           <SheetTitle className="sr-only">Navigation</SheetTitle>
 
           {/* Sheet header — same as mobile navbar */}
@@ -255,12 +263,7 @@ export default function Navbar() {
                 <p className="text-xl font-medium mb-2">Your affiliate link</p>
                 {affiliate?.affiliateLink && (
                   <div className="flex items-center gap-2">
-                    <a
-                      href={affiliate.affiliateLink}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-xs"
-                    >
+                    <a href={affiliate.affiliateLink} target="_blank" rel="noopener noreferrer" className="text-xs">
                       {affiliate.affiliateLink.replace(/^https?:\/\//, "")}
                     </a>
                     <CopyButton value={affiliate.affiliateLink} />
@@ -268,7 +271,11 @@ export default function Navbar() {
                 )}
               </div>
 
-              {isPayout ? <BankAccount /> : affiliate?.affiliateLink && <LinkCustomizer baseLink={affiliate.affiliateLink} />}
+              {isPayout ? (
+                <BankAccount />
+              ) : (
+                affiliate?.affiliateLink && <LinkCustomizer baseLink={affiliate.affiliateLink} />
+              )}
             </div>
           </div>
         </SheetContent>

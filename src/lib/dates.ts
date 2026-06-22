@@ -86,3 +86,27 @@ export function formatShortDate(isoDate: string): string {
   const date = new Date(2000, Number.parseInt(month, 10) - 1, Number.parseInt(day, 10));
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
+
+export function formatMonthYear(isoDate: string): string {
+  const [year, month] = isoDate.split("-");
+  return `${MONTHS[Number.parseInt(month, 10) - 1]} ${year}`;
+}
+
+/** Compact "3h ago" / "2d ago" relative time from an ISO timestamp. */
+export function formatRelativeTime(isoTimestamp: string): string {
+  const then = new Date(isoTimestamp).getTime();
+  const diffSeconds = Math.round((Date.now() - then) / 1000);
+
+  if (diffSeconds < 60) return "just now";
+  const diffMinutes = Math.floor(diffSeconds / 60);
+  if (diffMinutes < 60) return `${diffMinutes}m ago`;
+  const diffHours = Math.floor(diffMinutes / 60);
+  if (diffHours < 24) return `${diffHours}h ago`;
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays < 7) return `${diffDays}d ago`;
+  const diffWeeks = Math.floor(diffDays / 7);
+  if (diffWeeks < 5) return `${diffWeeks}w ago`;
+  const diffMonths = Math.floor(diffDays / 30);
+  if (diffMonths < 12) return `${diffMonths}mo ago`;
+  return `${Math.floor(diffDays / 365)}y ago`;
+}

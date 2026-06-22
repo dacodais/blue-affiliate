@@ -1,0 +1,23 @@
+{
+  "id": "marketing_material",
+  "label": "Marketing Material",
+  "repeatable": true,
+  "status": true,
+  "format": "custom",
+  "json": {
+    "Main": {
+      "title": {
+        "type": "Text",
+        "config": {
+          "label": "Title"
+        }
+      },
+      "image": {
+        "type": "Image",
+        "config": {
+          "label": "Image"
+        }
+      }
+    }
+  }
+}

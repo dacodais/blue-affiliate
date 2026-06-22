@@ -1,21 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Image from "next/image";
-import { Card, CardContent, CardFooter, CardTitle } from "@/components/ui/card";
-import { IconComponent } from "@/components/Icon";
+import { useEffect, useState } from "react";
 import BannerDownloadButton from "@/components/BannerDownloadButton";
+import { IconComponent } from "@/components/Icon";
+import { Card, CardContent, CardFooter, CardTitle } from "@/components/ui/card";
 
 interface BannerCardProps {
   title: string;
   imageUrl: string;
-  width: number;
-  height: number;
   dimensions: string;
   fileSize: string | null;
 }
 
-export default function BannerCard({ title, imageUrl, width, height, dimensions, fileSize }: BannerCardProps) {
+export default function BannerCard({ title, imageUrl, dimensions, fileSize }: BannerCardProps) {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [animateIn, setAnimateIn] = useState(false);
 
@@ -32,14 +30,18 @@ export default function BannerCard({ title, imageUrl, width, height, dimensions,
 
   return (
     <>
-      <Card className="gap-0">
-        <button type="button" onClick={() => setLightboxOpen(true)} className="cursor-zoom-in">
+      <Card className="gap-0 pt-0 overflow-hidden">
+        <button
+          type="button"
+          onClick={() => setLightboxOpen(true)}
+          className="relative aspect-video w-full cursor-zoom-in"
+        >
           <Image
             src={imageUrl}
             alt={title}
-            width={width}
-            height={height}
-            className="aspect-video w-full object-cover max-h-55"
+            fill
+            sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, 33vw"
+            className="object-cover"
           />
         </button>
         <CardContent className="flex flex-col gap-2 pt-4 pb-0">

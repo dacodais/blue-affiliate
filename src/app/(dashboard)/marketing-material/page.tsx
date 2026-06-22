@@ -1,11 +1,42 @@
-import { Heading1 } from "@/components/ui/typography";
-import { Card, CardContent } from "@/components/ui/card";
-import { createClient } from "@/prismicio";
 import BannerCard from "@/components/BannerCard";
+import { Card, CardContent } from "@/components/ui/card";
+import { Heading1 } from "@/components/ui/typography";
+import { formatBytes } from "@/lib/utils";
+import { createClient } from "@/prismicio";
+
+/** Reads the real download size from the image's Content-Length header. */
+async function fetchImageSize(url: string): Promise<string | null> {
+  try {
+    const res = await fetch(url, { method: "HEAD", cache: "force-cache" });
+    const length = res.headers.get("content-length");
+    if (!length) return null;
+    const size = formatBytes(Number.parseInt(length, 10));
+    return size || null;
+  } catch {
+    return null;
+  }
+}
 
 export default async function MarketingMaterialPage() {
   const client = createClient();
-  const banners = await client.getAllByType("marketing_banner").catch(() => []);
+  const banners = await client.getAllByType("marketing_material").catch(() => []);
+
+  const cards = (
+    await Promise.all(
+      banners.map(async (banner) => {
+        const { title, image } = banner.data;
+        const imageUrl = image.url ?? "";
+        if (!imageUrl) return null;
+        return {
+          id: banner.id,
+          title: title ?? "",
+          imageUrl,
+          dimensions: image.dimensions ? `${image.dimensions.width} × ${image.dimensions.height}` : "",
+          fileSize: await fetchImageSize(imageUrl),
+        };
+      }),
+    )
+  ).filter((card) => card !== null);
 
   return (
     <>
@@ -20,36 +51,15 @@ export default async function MarketingMaterialPage() {
 
       <section>
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-          {/* TODO: Remove fake banner once Prismic has real content */}
-          <BannerCard
-            title="BLUE - Social Media Square"
-            imageUrl="/test.jpg"
-            width={1080}
-            height={1080}
-            dimensions="1080 × 1080"
-            fileSize="1.5 MB"
-          />
-
-          {banners.map((banner) => {
-            const { title, image, file_size } = banner.data;
-            const dimensions =
-              image.dimensions ? `${image.dimensions.width} × ${image.dimensions.height}` : "";
-            const imageUrl = image.url ?? "";
-
-            if (!imageUrl) return null;
-
-            return (
-              <BannerCard
-                key={banner.id}
-                title={title ?? ""}
-                imageUrl={imageUrl}
-                width={image.dimensions?.width ?? 540}
-                height={image.dimensions?.height ?? 540}
-                dimensions={dimensions}
-                fileSize={file_size}
-              />
-            );
-          })}
+          {cards.map((card) => (
+            <BannerCard
+              key={card.id}
+              title={card.title}
+              imageUrl={card.imageUrl}
+              dimensions={card.dimensions}
+              fileSize={card.fileSize}
+            />
+          ))}
         </div>
       </section>
 

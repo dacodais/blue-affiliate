@@ -23,7 +23,8 @@ const blueDisplay = localFont({
 
 export const metadata: Metadata = {
   title: "Blue Affiliate",
-  description: "Blue Affiliate is a platform for creating and managing affiliate programs.",
+  // Private, invite-only portal — keep it out of search engines entirely.
+  robots: { index: false, follow: false },
 };
 
 export default function RootLayout({

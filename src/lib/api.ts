@@ -1,10 +1,15 @@
 import type {
+  BankAccount,
+  CommissionMonth,
   DashboardSummary,
   EngagementData,
   LoginResponse,
+  Notification,
   PayoutRecord,
   PayoutsData,
   RentalsData,
+  SubIdPerformanceRow,
+  UpdateBankAccountInput,
 } from "@/types/api";
 
 const API_BASE = "/api";
@@ -67,10 +72,10 @@ function dateRangeQuery(range: DateRange): string {
 }
 
 export const api = {
-  login(email: string, password: string): Promise<LoginResponse> {
+  login(email: string, password: string, rememberMe: boolean = false): Promise<LoginResponse> {
     return request<LoginResponse>("/auth/login", {
       method: "POST",
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ email, password, rememberMe }),
     });
   },
 
@@ -90,10 +95,46 @@ export const api = {
     return requestData<PayoutsData>("/payouts/");
   },
 
-  requestPayout(amount: number): Promise<PayoutRecord> {
+  async getPayoutMonths(): Promise<CommissionMonth[]> {
+    const { months } = await requestData<{ months: CommissionMonth[] }>("/payouts/months");
+    return months;
+  },
+
+  requestPayout(monthIds: string[]): Promise<PayoutRecord> {
     return requestData<PayoutRecord>("/payouts/request", {
       method: "POST",
-      body: JSON.stringify({ amount }),
+      body: JSON.stringify({ monthIds }),
+    });
+  },
+
+  getSubIdPerformance(range: DateRange): Promise<SubIdPerformanceRow[]> {
+    return requestData<SubIdPerformanceRow[]>(`/performance/sub-ids/${dateRangeQuery(range)}`);
+  },
+
+  getBankAccount(): Promise<BankAccount | null> {
+    return requestData<BankAccount | null>("/bank-account/");
+  },
+
+  updateBankAccount(input: UpdateBankAccountInput): Promise<BankAccount> {
+    return requestData<BankAccount>("/bank-account/", {
+      method: "PUT",
+      body: JSON.stringify(input),
+    });
+  },
+
+  getNotifications(): Promise<Notification[]> {
+    return requestData<Notification[]>("/notifications/");
+  },
+
+  markAllNotificationsRead(): Promise<{ updated: number }> {
+    return requestData<{ updated: number }>("/notifications/mark-all-read", {
+      method: "POST",
+    });
+  },
+
+  markNotificationRead(id: string): Promise<{ success: boolean }> {
+    return requestData<{ success: boolean }>(`/notifications/${id}/read`, {
+      method: "POST",
     });
   },
 };

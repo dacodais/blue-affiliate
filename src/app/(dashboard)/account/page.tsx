@@ -1,11 +1,13 @@
 "use client";
 
 import { Bell, Landmark, Mail, User } from "lucide-react";
-import type { ReactNode } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Heading1 } from "@/components/ui/typography";
+import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
+import type { BankAccount } from "@/types/api";
 
 const notificationPreferences: { key: string; label: string; description: string; defaultEnabled: boolean }[] = [
   {
@@ -42,6 +44,26 @@ const notificationPreferences: { key: string; label: string; description: string
 
 export default function AccountPage() {
   const { affiliate } = useAuth();
+  const [bankAccount, setBankAccount] = useState<BankAccount | null>(null);
+  const [bankLoading, setBankLoading] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+    api
+      .getBankAccount()
+      .then((account) => {
+        if (active) setBankAccount(account);
+      })
+      .catch(() => {
+        /* leave as null — the card shows the not-configured note */
+      })
+      .finally(() => {
+        if (active) setBankLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   return (
     <div>
@@ -58,16 +80,25 @@ export default function AccountPage() {
         <p className="text-card-foreground">Profile Information</p>
 
         <div className="mt-5 flex flex-col gap-5 md:flex-row md:gap-6">
-          <ProfileField icon={<User className="size-5 text-muted-foreground" />} label="Full Name" value={affiliate?.name ?? "—"} />
-          <ProfileField icon={<Mail className="size-5 text-muted-foreground" />} label="Email Address" value={affiliate?.email ?? "—"} />
+          <ProfileField
+            icon={<User className="size-5 text-muted-foreground" />}
+            label="Full Name"
+            value={affiliate?.name ?? "—"}
+          />
+          <ProfileField
+            icon={<Mail className="size-5 text-muted-foreground" />}
+            label="Email Address"
+            value={affiliate?.email ?? "—"}
+          />
         </div>
       </section>
 
       <section className="mt-6 rounded-[10px] bg-linear-to-t from-primary to-[#101828] p-6 text-white">
         <p className="text-xs font-medium">Commission Tier</p>
-        <p className="mt-1 text-lg">Standard (X %)</p>
+        <p className="mt-1 text-lg">Standard ({affiliate?.commissionPercent ?? "—"} %)</p>
         <p className="mt-2 text-sm">
-          Earn X % commission on all confirmed rentals. Contact support to discuss upgrading to a higher tier.
+          Earn {affiliate?.commissionPercent ?? "—"} % commission on all confirmed rentals. Contact support to discuss
+          upgrading to a higher tier.
         </p>
       </section>
 
@@ -77,15 +108,28 @@ export default function AccountPage() {
           <p className="text-card-foreground">Bank Account Details</p>
         </div>
 
-        <div className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-5">
-          <BankField label="Account Holder" value="Jón Sigurðsson" />
-          <BankField label="Bank Name" value="Landsbankinn" />
-          <BankField label="Account Number" value="0133-26-654321" mono />
-          <BankField label="SWIFT / BIC" value="NBIIISREXXX" mono />
-        </div>
+        {bankLoading ? (
+          <div className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-5">
+            {[0, 1, 2, 3].map((i) => (
+              <div key={i} className="flex flex-col gap-1">
+                <div className="animate-pulse h-3 w-24 bg-muted rounded" />
+                <div className="animate-pulse h-4 w-40 bg-muted rounded" />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-5">
+            <BankField label="Account Holder" value={bankAccount?.holderName || "—"} />
+            <BankField label="Bank Name" value={bankAccount?.bankName || "—"} />
+            <BankField label="Account Number" value={bankAccount?.iban || "—"} mono />
+            <BankField label="SWIFT / BIC" value={bankAccount?.swift || "—"} mono />
+          </div>
+        )}
 
         <p className="mt-5 rounded-lg border border-[#bedbff] bg-[#eff6ff] px-3 py-3 text-xs text-[#1c398e]">
-          To update your bank details, visit the Request Payout page and use the Bank Account section in the sidebar.
+          {bankAccount
+            ? "To update your bank details, visit the Request Payout page and use the Bank Account section in the sidebar."
+            : "No bank account on file yet. Add your details on the Request Payout page using the Bank Account section in the sidebar."}
         </p>
       </section>
 

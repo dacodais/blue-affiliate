@@ -1,0 +1,22 @@
+{
+  "id": "faq",
+  "label": "FAQ",
+  "repeatable": false,
+  "status": true,
+  "format": "page",
+  "json": {
+    "Main": {
+      "slices": {
+        "type": "Slices",
+        "fieldset": "Slice Zone",
+        "config": {
+          "choices": {
+            "faq_group": {
+              "type": "SharedSlice"
+            }
+          }
+        }
+      }
+    }
+  }
+}
