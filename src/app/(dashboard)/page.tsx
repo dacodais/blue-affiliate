@@ -117,7 +117,9 @@ function buildDeliveryStats(data: DashboardSummary): StatCard[] {
 export default function Home() {
   const { affiliate } = useAuth();
   const [period, setPeriod] = useState(getDefaultPeriod());
-  const [data, setData] = useState<DashboardSummary | null>(null);
+  // Booking Data is by reservation created date; Delivery Data is by pickup date.
+  const [bookingData, setBookingData] = useState<DashboardSummary | null>(null);
+  const [deliveryData, setDeliveryData] = useState<DashboardSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isFetching, setIsFetching] = useState(false);
 
@@ -126,8 +128,12 @@ export default function Home() {
     setError(null);
     try {
       const range = periodToDateRange(p);
-      const result = await api.getDashboard(range);
-      setData(result);
+      const [booking, delivery] = await Promise.all([
+        api.getDashboard(range, "created"),
+        api.getDashboard(range, "starts"),
+      ]);
+      setBookingData(booking);
+      setDeliveryData(delivery);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load dashboard data");
     } finally {
@@ -139,13 +145,13 @@ export default function Home() {
     fetchData(period);
   }, [period, fetchData]);
 
-  if (!data && error) {
+  if (!bookingData && !deliveryData && error) {
     return (
       <Banner level="error" message={error} items={["Please try again or contact support if the issue persists."]} />
     );
   }
 
-  const isInitialLoad = !data;
+  const isInitialLoad = !bookingData && !deliveryData;
 
   return (
     <Tabs defaultValue="booking-data" className="w-full">
@@ -168,18 +174,18 @@ export default function Home() {
       <TabsContent value="booking-data">
         <div className="space-y-6">
           <StatsGrid
-            stats={data ? buildBookingStats(data) : placeholderBookingStats}
+            stats={bookingData ? buildBookingStats(bookingData) : placeholderBookingStats}
             loading={isInitialLoad || isFetching}
           />
 
-          {data ? (
-            <BookingTypesDistribution distribution={data.bookingTypeDistribution} />
+          {bookingData ? (
+            <BookingTypesDistribution distribution={bookingData.bookingTypeDistribution} />
           ) : (
             <BookingTypesDistributionSkeleton />
           )}
 
-          {data ? (
-            <Table title="Top 5 Cars" icon="Car" columns={topCarsColumns} data={data.topCars} />
+          {bookingData ? (
+            <Table title="Top 5 Cars" icon="Car" columns={topCarsColumns} data={bookingData.topCars} />
           ) : (
             <TopCarsTableSkeleton />
           )}
@@ -190,12 +196,12 @@ export default function Home() {
       <TabsContent value="delivery-data">
         <div className="space-y-6">
           <StatsGrid
-            stats={data ? buildDeliveryStats(data) : placeholderDeliveryStats}
+            stats={deliveryData ? buildDeliveryStats(deliveryData) : placeholderDeliveryStats}
             loading={isInitialLoad || isFetching}
           />
 
-          {data ? (
-            <Table title="Top 5 Cars" icon="Car" columns={topCarsColumns} data={data.topCars} />
+          {deliveryData ? (
+            <Table title="Top 5 Cars" icon="Car" columns={topCarsColumns} data={deliveryData.topCars} />
           ) : (
             <TopCarsTableSkeleton />
           )}

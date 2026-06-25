@@ -79,8 +79,9 @@ export const api = {
     });
   },
 
-  getDashboard(range: DateRange): Promise<DashboardSummary> {
-    return requestData<DashboardSummary>(`/dashboard/${dateRangeQuery(range)}`);
+  getDashboard(range: DateRange, basis?: "created" | "starts"): Promise<DashboardSummary> {
+    const query = `${dateRangeQuery(range)}${basis ? `&basis=${basis}` : ""}`;
+    return requestData<DashboardSummary>(`/dashboard/${query}`);
   },
 
   getEngagement(range: DateRange): Promise<EngagementData> {
