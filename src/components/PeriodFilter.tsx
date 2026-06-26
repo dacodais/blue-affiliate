@@ -18,7 +18,7 @@ function generatePeriods(): string[] {
   const periods: string[] = [...PRESETS];
   const now = new Date();
 
-  for (let i = 1; i <= 12; i++) {
+  for (let i = 0; i <= 12; i++) {
     const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
     const label = date.toLocaleDateString("en-US", {
       month: "long",
