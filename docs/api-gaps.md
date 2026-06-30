@@ -11,8 +11,8 @@ This doc tracks the changes the affiliate portal (`blue-affiliate`) needs from t
 
 | # | Area | Change | Status |
 |---|---|---|---|
-| 1 | Auth — forgot password | New endpoint | ⛔ Blocked — no BlueDesk upstream endpoint (see note) |
-| 2 | Auth — reset password | New endpoint | ⛔ Blocked — no BlueDesk upstream endpoint (see note) |
+| 1 | Auth — forgot password | New endpoint | ✅ Shipped (2026-06-30) |
+| 2 | Auth — reset password | New endpoint | ✅ Shipped (2026-06-30) |
 | 3 | Affiliate profile | Add `commissionPercent` | ✅ Shipped |
 | 4 | Dashboard summary | Make change-percent fields required | ✅ Shipped |
 | 5 | Total Clicks — conversion rate | Add `conversionChangePercent` | ✅ Shipped |
@@ -23,11 +23,13 @@ This doc tracks the changes the affiliate portal (`blue-affiliate`) needs from t
 | — | Commission months | New endpoint | ✅ Shipped |
 | — | Payout request body | Updated body | ✅ Shipped |
 
-> **Items 1 & 2 (password reset) are blocked upstream.** The BlueDesk partner API
-> (`blue-desk-affiliate-api.html`) exposes only `POST /auth/login` for auth — there is no
-> forgot-password / reset-password endpoint. blue-api can't proxy what doesn't exist, so the
-> portal's "Forgot password?" flow remains a stub (`src/app/(auth)/login/page.tsx`). Unblock
-> by having BlueDesk add the endpoints, then wire blue-api → portal.
+> **Items 1 & 2 (password reset) shipped 2026-06-30.** BlueDesk added `POST /auth/forgot-password`
+> and `POST /auth/reset-password` (confirmed at affiliate-api-docs.bluedesk.is). blue-api now proxies
+> both (`src/adapters/blue-desk/auth.ts`, `src/routes/v1/affiliate/auth.ts`), and the portal consumes
+> them: the login page's "Forgot password?" form calls `api.forgotPassword`, and the new
+> `src/app/(auth)/reset-password/page.tsx` (link target `/reset-password?token=…`) calls
+> `api.resetPassword`. Forgot-password returns a generic message (no account-existence leak);
+> reset-password requires a new password of min 8 chars and surfaces invalid/expired tokens as 400.
 >
 > **Items 7, 8, 9 wiring (2026-06-22):** blue-api now proxies the BlueDesk bank-account,
 > notifications, and sub-id endpoints (`src/adapters/blue-desk/{bank-account,notifications,performance}.ts`,

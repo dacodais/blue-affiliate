@@ -79,6 +79,20 @@ export const api = {
     });
   },
 
+  forgotPassword(email: string): Promise<{ message: string }> {
+    return request<{ message: string }>("/auth/forgot-password", {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    });
+  },
+
+  resetPassword(token: string, password: string): Promise<{ message: string }> {
+    return request<{ message: string }>("/auth/reset-password", {
+      method: "POST",
+      body: JSON.stringify({ token, password }),
+    });
+  },
+
   getDashboard(range: DateRange, basis?: "created" | "starts"): Promise<DashboardSummary> {
     const query = `${dateRangeQuery(range)}${basis ? `&basis=${basis}` : ""}`;
     return requestData<DashboardSummary>(`/dashboard/${query}`);

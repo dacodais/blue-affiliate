@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { type FormEvent, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ApiClientError } from "@/lib/api";
+import { ApiClientError, api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 
 type View = "login" | "forgot" | "forgot-sent";
@@ -53,14 +53,19 @@ export default function LoginPage() {
     e.preventDefault();
     setError(null);
     setIsSubmitting(true);
-    // STUB: no password-reset flow exists upstream yet. The BlueDesk partner API
-    // (blue-desk-affiliate-api.html) exposes only POST /auth/login — there is no
-    // forgot-password / reset-password endpoint, so this cannot be wired end-to-end.
-    // Blocked on BlueDesk adding the endpoint; until then this shows the "check your
-    // email" view without sending anything. See docs/api-gaps.md items 1 & 2.
-    await new Promise((r) => setTimeout(r, 400));
-    setIsSubmitting(false);
-    setView("forgot-sent");
+
+    try {
+      await api.forgotPassword(email);
+      setView("forgot-sent");
+    } catch (err) {
+      if (err instanceof ApiClientError) {
+        setError(err.message);
+      } else {
+        setError("Something went wrong. Please try again.");
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   const goToForgot = () => {
