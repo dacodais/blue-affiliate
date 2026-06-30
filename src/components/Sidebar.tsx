@@ -1,6 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
+import { withDevHost } from "@/lib/affiliate-link";
 import { useAuth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 import BankAccount from "./BankAccount";
@@ -27,6 +28,8 @@ export default function Sidebar({ className }: { className?: string }) {
   const pathname = usePathname();
   const { affiliate, logout } = useAuth();
   const isPayout = pathname.startsWith("/payout");
+  // ⚠️ TEMPORARY — points the affiliate link at dev3 until go-live (see withDevHost).
+  const referralLink = affiliate?.affiliateLink ? withDevHost(affiliate.affiliateLink) : null;
 
   return (
     <aside className={cn("space-y-[26px]", className)}>
@@ -65,17 +68,12 @@ export default function Sidebar({ className }: { className?: string }) {
 
       <div className="border border-light-gray rounded-2xl px-6 py-4">
         <p className="text-2xl font-medium mb-1">Your affiliate link</p>
-        {affiliate?.affiliateLink && (
+        {referralLink && (
           <div className="flex items-center gap-2">
-            <a
-              href={affiliate.affiliateLink}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-sm break-all"
-            >
-              {affiliate.affiliateLink.replace(/^https?:\/\//, "")}
+            <a href={referralLink} target="_blank" rel="noopener noreferrer" className="text-sm break-all">
+              {referralLink.replace(/^https?:\/\//, "")}
             </a>
-            <CopyButton value={affiliate.affiliateLink} />
+            <CopyButton value={referralLink} />
           </div>
         )}
       </div>

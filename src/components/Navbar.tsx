@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { withDevHost } from "@/lib/affiliate-link";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { formatRelativeTime } from "@/lib/dates";
@@ -177,6 +178,8 @@ export default function Navbar() {
   const pathname = usePathname();
   const { affiliate, logout } = useAuth();
   const isPayout = pathname.startsWith("/payout");
+  // ⚠️ TEMPORARY — points the affiliate link at dev3 until go-live (see withDevHost).
+  const referralLink = affiliate?.affiliateLink ? withDevHost(affiliate.affiliateLink) : null;
 
   return (
     <>
@@ -261,12 +264,12 @@ export default function Navbar() {
               {/* Affiliate link */}
               <div className="bg-card border border-light-gray/95 rounded-2xl p-6">
                 <p className="text-xl font-medium mb-2">Your affiliate link</p>
-                {affiliate?.affiliateLink && (
+                {referralLink && (
                   <div className="flex items-center gap-2">
-                    <a href={affiliate.affiliateLink} target="_blank" rel="noopener noreferrer" className="text-xs">
-                      {affiliate.affiliateLink.replace(/^https?:\/\//, "")}
+                    <a href={referralLink} target="_blank" rel="noopener noreferrer" className="text-xs">
+                      {referralLink.replace(/^https?:\/\//, "")}
                     </a>
-                    <CopyButton value={affiliate.affiliateLink} />
+                    <CopyButton value={referralLink} />
                   </div>
                 )}
               </div>
