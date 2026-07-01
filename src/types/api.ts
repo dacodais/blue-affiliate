@@ -3,7 +3,8 @@ export interface AffiliateProfile {
   name: string;
   email: string;
   affiliateLink: string;
-  commissionPercent: number;
+  /** Commission rate as a percentage; null when Blue Desk hasn't configured a rate (distinct from 0). */
+  commissionPercent: number | null;
 }
 
 export interface LoginResponse {
