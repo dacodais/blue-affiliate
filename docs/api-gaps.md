@@ -322,3 +322,21 @@ Returns 400 with a client-surfaceable `error.message` on violations.
 ### Login — `rememberMe`
 
 `POST /v1/affiliate/auth/login` accepts an optional `rememberMe: boolean` (default `false`) and adjusts the JWT TTL: 8 hours if false / unset, 30 days if true.
+
+---
+
+## Temporarily disabled UI
+
+### Booking Types Distribution (dashboard) — DISABLED 2026-07-01
+
+The "Booking Types Distribution" card on the dashboard Booking Data tab is
+**commented out** in [src/app/(dashboard)/page.tsx](../src/app/(dashboard)/page.tsx).
+
+**Why:** the Standard/Premium/Luxury buckets are a keyword heuristic on Caren's
+vehicle class names (`Vehicle.Class` contains "luxury"/"premium"/etc.), which may
+misclassify — we're not confident how it should be categorised yet. The API still
+returns `bookingTypeDistribution`, so re-enabling is just uncommenting the block
+(and its import / skeleton are still present).
+
+**To re-enable:** uncomment the `<BookingTypesDistribution>` block once the
+classification is agreed.

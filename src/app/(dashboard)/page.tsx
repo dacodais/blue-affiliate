@@ -178,11 +178,16 @@ export default function Home() {
             loading={isInitialLoad || isFetching}
           />
 
-          {bookingData ? (
+          {/* TEMPORARILY DISABLED (2026-07-01): Booking Types Distribution is hidden
+              until we confirm how it should be classified — the current buckets are a
+              keyword heuristic on Caren's vehicle class names, which may misclassify.
+              Re-enable by uncommenting; the data (bookingTypeDistribution) is still
+              returned by the API. See docs/api-gaps.md. */}
+          {/* {bookingData ? (
             <BookingTypesDistribution distribution={bookingData.bookingTypeDistribution} />
           ) : (
             <BookingTypesDistributionSkeleton />
-          )}
+          )} */}
 
           {bookingData ? (
             <Table title="Top 5 Cars" icon="Car" columns={topCarsColumns} data={bookingData.topCars} />
