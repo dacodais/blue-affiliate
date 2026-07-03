@@ -336,78 +336,82 @@ function SelectCommissionMonths({
                   </tr>
                 ))
               : months.map((m) => {
-              const isConfirmed = m.status === "confirmed";
-              const isSelected = selected.has(m.id);
-              const isExpanded = expanded.has(m.id);
-              const monthLabel = formatMonthYear(m.monthStart);
-              return (
-                <Fragment key={m.id}>
-                  <tr className={cn("border-b border-[#f3f4f6]", !isConfirmed && "opacity-60")}>
-                    <td className="py-4 pl-2 pr-2 w-10">
-                      {isConfirmed && (
-                        <button
-                          type="button"
-                          aria-label={isExpanded ? `Collapse ${monthLabel}` : `Expand ${monthLabel}`}
-                          aria-expanded={isExpanded}
-                          onClick={() => toggleExpand(m.id)}
-                          className="flex items-center justify-center size-6 rounded text-muted-foreground hover:bg-muted"
-                        >
-                          <ChevronDown
-                            className={cn("size-4 transition-transform", isExpanded && "rotate-180")}
-                          />
-                        </button>
-                      )}
-                    </td>
-                    <td className="py-4 pr-4">
-                      <Checkbox
-                        aria-label={`Select ${monthLabel}`}
-                        disabled={!isConfirmed}
-                        checked={isSelected}
-                        onCheckedChange={() => toggle(m)}
-                      />
-                    </td>
-                    <td className="py-4 pr-4 text-card-foreground">{monthLabel}</td>
-                    <td className="py-4 pr-4 text-[#364153] capitalize">
-                      <span className="flex items-center gap-2">
-                        <span
-                          className={cn("size-2 rounded-full", isConfirmed ? "bg-[#00ff00]" : "bg-[#ff9800]")}
-                          aria-hidden
-                        />
-                        {m.status}
-                      </span>
-                    </td>
-                    <td className="py-4 pr-4 text-right text-card-foreground">
-                      {m.deliveriesClosed}/{m.deliveriesTotal}
-                    </td>
-                    <td className="py-4 pl-4 text-right font-medium text-card-foreground">
-                      {formatPrice(m.commission)}
-                    </td>
-                  </tr>
-                  {isConfirmed && m.rentals && (
-                    <tr className={cn(isExpanded && "border-b border-[#f3f4f6]")}>
-                      <td colSpan={6} className="bg-[#f9fafb] p-0">
-                        <div
-                          className={cn(
-                            "grid transition-[grid-template-rows] duration-300 ease-in-out",
-                            isExpanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
+                  const isConfirmed = m.status === "confirmed";
+                  const isSelected = selected.has(m.id);
+                  const isExpanded = expanded.has(m.id);
+                  const monthLabel = formatMonthYear(m.monthStart);
+                  return (
+                    <Fragment key={m.id}>
+                      <tr className={cn("border-b border-[#f3f4f6]", !isConfirmed && "opacity-60")}>
+                        <td className="py-4 pl-2 pr-2 w-10">
+                          {/* TEMPORARY (debugging): pending months are expandable too (see below). */}
+                          {m.rentals && m.rentals.length > 0 && (
+                            <button
+                              type="button"
+                              aria-label={isExpanded ? `Collapse ${monthLabel}` : `Expand ${monthLabel}`}
+                              aria-expanded={isExpanded}
+                              onClick={() => toggleExpand(m.id)}
+                              className="flex items-center justify-center size-6 rounded text-muted-foreground hover:bg-muted"
+                            >
+                              <ChevronDown className={cn("size-4 transition-transform", isExpanded && "rotate-180")} />
+                            </button>
                           )}
-                        >
-                          <div className="overflow-hidden">
-                            <div className="px-8 py-5">
-                              <IndividualRentalsTable
-                                month={monthLabel}
-                                totalCommission={m.commission}
-                                rentals={m.rentals}
-                              />
+                        </td>
+                        <td className="py-4 pr-4">
+                          <Checkbox
+                            aria-label={`Select ${monthLabel}`}
+                            disabled={!isConfirmed}
+                            checked={isSelected}
+                            onCheckedChange={() => toggle(m)}
+                          />
+                        </td>
+                        <td className="py-4 pr-4 text-card-foreground">{monthLabel}</td>
+                        <td className="py-4 pr-4 text-[#364153] capitalize">
+                          <span className="flex items-center gap-2">
+                            <span
+                              className={cn("size-2 rounded-full", isConfirmed ? "bg-[#00ff00]" : "bg-[#ff9800]")}
+                              aria-hidden
+                            />
+                            {m.status}
+                          </span>
+                        </td>
+                        <td className="py-4 pr-4 text-right text-card-foreground">
+                          {m.deliveriesClosed}/{m.deliveriesTotal}
+                        </td>
+                        <td className="py-4 pl-4 text-right font-medium text-card-foreground">
+                          {formatPrice(m.commission)}
+                        </td>
+                      </tr>
+                      {m.rentals && (
+                        <tr className={cn(isExpanded && "border-b border-[#f3f4f6]")}>
+                          <td colSpan={6} className="bg-[#f9fafb] p-0">
+                            <div
+                              className={cn(
+                                "grid transition-[grid-template-rows] duration-300 ease-in-out",
+                                isExpanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
+                              )}
+                            >
+                              <div className="overflow-hidden">
+                                <div className="px-8 py-5">
+                                  {isConfirmed ? (
+                                    <IndividualRentalsTable
+                                      month={monthLabel}
+                                      totalCommission={m.commission}
+                                      rentals={m.rentals}
+                                    />
+                                  ) : (
+                                    /* TEMPORARY (debugging): minimal pending view — reservation refs only. */
+                                    <PendingReservationsDebug rentals={m.rentals} />
+                                  )}
+                                </div>
+                              </div>
                             </div>
-                          </div>
-                        </div>
-                      </td>
-                    </tr>
-                  )}
-                </Fragment>
-              );
-            })}
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
+                  );
+                })}
           </tbody>
         </table>
       </div>
@@ -493,6 +497,41 @@ function SelectCommissionMonths({
         </DialogContent>
       </Dialog>
     </section>
+  );
+}
+
+// TEMPORARY (debugging): minimal expand panel for pending months — shows each
+// reservation's booking code / GUID and a "pending" marker, nothing else.
+// Remove this component and the pending-expand wiring above once debugging is done.
+function PendingReservationsDebug({ rentals }: { rentals: IndividualRental[] }) {
+  return (
+    <div className="whitespace-normal">
+      <p className="text-sm font-bold text-foreground">Reservations (debug)</p>
+      <p className="mt-1 text-xs text-muted-foreground">{rentals.length} reservations</p>
+
+      <div className="mt-3 overflow-hidden rounded-lg border border-[#E5E7EB] bg-card">
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="border-b border-light-gray bg-[#f3f4f6] text-[#4a5565] font-bold">
+              <th className="text-left px-3 py-2.5">Booking Code</th>
+              <th className="text-left px-3 py-2.5">GUID</th>
+              <th className="text-left px-3 py-2.5">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rentals.map((r) => (
+              <tr key={r.guid} className="border-b border-[#f3f4f6] last:border-b-0">
+                <td className="px-3 py-2.5 text-card-foreground">{r.bookingCode ?? "—"}</td>
+                <td className="px-3 py-2.5 text-card-foreground break-all">{r.guid}</td>
+                <td className={cn("px-3 py-2.5", r.finished ? "text-[#00a63e]" : "text-[#ff9800]")}>
+                  {r.finished ? "closed" : "pending"}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
   );
 }
 

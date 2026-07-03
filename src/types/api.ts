@@ -58,6 +58,9 @@ export type CommissionMonthStatus = "confirmed" | "pending";
 
 export interface IndividualRental {
   id: string;
+  bookingCode: string | null; // Caren booking code (human reference); null if unset
+  guid: string; // Caren reservation GUID
+  finished: boolean; // returned/closed (OdometerAfter set and > OdometerBefore)
   startDate: string; // ISO date, e.g. "2026-02-01"
   endDate: string; // ISO date
   carModel: string;
