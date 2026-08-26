@@ -60,7 +60,9 @@ export interface IndividualRental {
   id: string;
   bookingCode: string | null; // Caren booking code (human reference); null if unset
   guid: string; // Caren reservation GUID
-  finished: boolean; // returned/closed (OdometerAfter set and > OdometerBefore)
+  finished: boolean; // returned/closed (Caren EndedDate is set)
+  // TEMPORARY (debugging): raw Caren EndedDate behind `finished`; null when not closed.
+  endedDate: string | null;
   startDate: string; // ISO date, e.g. "2026-02-01"
   endDate: string; // ISO date
   carModel: string;

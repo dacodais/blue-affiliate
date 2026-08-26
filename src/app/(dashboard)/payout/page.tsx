@@ -66,6 +66,12 @@ export default function PayoutPage() {
     fetchData();
   }, [fetchData]);
 
+  // TEMPORARY (debugging): dump the months (each with its rentals, incl. the raw
+  // Caren `endedDate` behind `finished`) so the new field can be spot-checked.
+  useEffect(() => {
+    if (months.length > 0) console.log("[EndedDate check]", months);
+  }, [months]);
+
   async function handleSubmitSelected(monthIds: string[]): Promise<boolean> {
     setSubmitError(null);
     setIsSubmitting(true);
