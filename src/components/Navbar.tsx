@@ -234,25 +234,34 @@ export default function Navbar() {
                   const current = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
                   return (
                     <li key={item.name}>
-                      <a
-                        href={item.href}
-                        onClick={(e) => {
-                          if (item.action === "logout") {
-                            e.preventDefault();
+                      {item.action === "logout" ? (
+                        <button
+                          type="button"
+                          onClick={() => {
                             setOpen(false);
                             logout();
-                          } else {
-                            setOpen(false);
-                          }
-                        }}
-                        className={cn(
-                          "flex items-center gap-3 h-12 px-4 rounded-lg font-medium",
-                          current && "bg-light-gray/50 border-l-4 border-secondary",
-                        )}
-                      >
-                        <IconComponent icon={item.icon} />
-                        {item.name}
-                      </a>
+                          }}
+                          className={cn(
+                            "flex w-full items-center gap-3 h-12 px-4 rounded-lg font-medium",
+                            current && "bg-light-gray/50 border-l-4 border-secondary",
+                          )}
+                        >
+                          <IconComponent icon={item.icon} />
+                          {item.name}
+                        </button>
+                      ) : (
+                        <Link
+                          href={item.href}
+                          onClick={() => setOpen(false)}
+                          className={cn(
+                            "flex items-center gap-3 h-12 px-4 rounded-lg font-medium",
+                            current && "bg-light-gray/50 border-l-4 border-secondary",
+                          )}
+                        >
+                          <IconComponent icon={item.icon} />
+                          {item.name}
+                        </Link>
+                      )}
                     </li>
                   );
                 })}

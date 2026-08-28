@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { withDevHost } from "@/lib/affiliate-link";
 import { useAuth } from "@/lib/auth";
@@ -24,6 +25,15 @@ const navigation: {
   { name: "Log out", href: "#", icon: "LogOut", action: "logout" },
 ];
 
+/** Shared nav-item styling; `current` adds the active bar and background. */
+function itemClassName(current: boolean): string {
+  return cn(
+    current &&
+      "h-15 items-center bg-light-gray/50 rounded-r-xl before:content-[''] before:absolute before:inset-y-0 before:left-0 before:h-full before:w-2 before:bg-secondary",
+    "hover:bg-light-gray/50 group flex w-full gap-x-3.5 py-3 pl-14 pr-6 font-medium rounded-r-xl relative",
+  );
+}
+
 export default function Sidebar({ className }: { className?: string }) {
   const pathname = usePathname();
   const { affiliate, logout } = useAuth();
@@ -40,25 +50,17 @@ export default function Sidebar({ className }: { className?: string }) {
               const current = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
               return (
                 <li key={item.name}>
-                  <a
-                    href={item.href}
-                    onClick={
-                      item.action === "logout"
-                        ? (e) => {
-                            e.preventDefault();
-                            logout();
-                          }
-                        : undefined
-                    }
-                    className={cn(
-                      current &&
-                        "h-15 flex items-center bg-light-gray/50 rounded-r-xl before:content-[''] before:absolute before:inset-y-0 before:left-0 before:h-full before:w-2 before:bg-secondary",
-                      "hover:bg-light-gray/50 group flex gap-x-3.5 py-3 pl-14 pr-6 font-medium rounded-r-xl relative",
-                    )}
-                  >
-                    <IconComponent icon={item.icon} className="shrink-0" size="lg" />
-                    {item.name}
-                  </a>
+                  {item.action === "logout" ? (
+                    <button type="button" onClick={logout} className={itemClassName(current)}>
+                      <IconComponent icon={item.icon} className="shrink-0" size="lg" />
+                      {item.name}
+                    </button>
+                  ) : (
+                    <Link href={item.href} className={itemClassName(current)}>
+                      <IconComponent icon={item.icon} className="shrink-0" size="lg" />
+                      {item.name}
+                    </Link>
+                  )}
                 </li>
               );
             })}

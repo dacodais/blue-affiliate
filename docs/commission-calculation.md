@@ -7,14 +7,15 @@ The authoritative formula (from the legacy `affiliate-dashboard.cshtml` + Blue's
 ```
 per reservation:
   base = TotalPrice − AdditionalChargesPrice − roadTax
-         where roadTax = the Extras item with Id === 2102 (its TotalPrice)
+         where roadTax = sum of the Extras items with Id 2102, 1662 or 1663
 
-commission = round( (base ÷ 1.24) × ratePercent / 100 )   // strip 24% VAT, then apply rate
+revenue    = round( base ÷ 1.24 )                  // strip 24% VAT
+commission = round( revenue × ratePercent / 100 )   // then apply rate
 ```
 
 - **Exclude `Cancelled` reservations** (legacy counts only `StatusText === "Reservation"`).
 - Attribute a reservation to the month of its **dropoff** (`DateTo`).
-- "Confirmed" month = all deliveries closed (`EndRental`), per the existing logic.
+- "Confirmed" month = all deliveries closed (Caren `EndedDate` is set on every reservation).
 - Min payout threshold: **50,000 ISK**.
 
 ## Where each value comes from in Caren
@@ -28,18 +29,20 @@ commission = round( (base ÷ 1.24) × ratePercent / 100 )   // strip 24% VAT, th
 
 ## ✅ Implemented — rentalapi-only (blue-api, 2026-06-23)
 
-Decisions settled: **we** own the amount; **strip 24% VAT**; **rentalapi is the single Caren source** for the whole affiliate path (vehicleapi dropped); "finished/confirmed" = **odometer** check.
+Decisions settled: **we** own the amount; **strip 24% VAT**; **rentalapi is the single Caren source** for the whole affiliate path (vehicleapi dropped); "finished/confirmed" = Caren **`EndedDate`** (was an odometer check until 2026-08-26 — see below).
 
 The rentalapi `getlist` payload carries everything in the list itself — `TotalPrice`, `AdditionalChargesPrice` (nullable), per-line-item `Extras` (road tax = `Id 2102`), `OdometerBefore`/`OdometerAfter`, `Guid`, `StatusText`/`CancelledDate`, `Vehicle.Class`, dates. So **no `getitem` calls, no vehicleapi, no merge.**
 
 Implementation (`src/domain/services/affiliate.ts`):
 - `getAffiliateRentalReservations` (rentalapi `getlist`, `Affiliate` filter + pagination) → cached via `getCachedRentalReservations`. The **only** Caren call on the affiliate path — read-only.
-- `commissionBaseOf(r) = TotalPrice − (AdditionalChargesPrice?.TotalPrice ?? 0) − (Extras[Id 2102]?.TotalPrice ?? 0)`.
-- `commissionFor(base, rate) = round((base ÷ 1.24) × rate/100)`.
-- **`isFinished(r) = OdometerAfter != null && OdometerBefore != null && OdometerAfter > OdometerBefore`** — replaces the vehicleapi `EndRental` flag (drives `deliveriesClosed`/confirmed + `allRentalsEnded`).
+- `revenueOf(r) = round((TotalPrice − (AdditionalChargesPrice?.TotalPrice ?? 0) − Σ Extras[Id ∈ {2102, 1662, 1663}].TotalPrice) ÷ 1.24)` — **ex-VAT**.
+- **Road tax ids (2026-08-26):** `2102` "Road Tax (Government tax)" is current; `1662`/`1663` "Road Tax" are the retired ids it replaced around Dec 2025 and still appear on older bookings, which remain in scope while the rolling 12-month window reaches back that far. All matching lines are summed — a booking can carry both. Blue has not yet confirmed whether Caren exposes a category we could key on instead of hardcoded ids; until then this list needs updating whenever Caren retires or adds a road-tax extra.
+- `commissionFor(revenue, rate) = round(revenue × rate/100)`.
+- **VAT is stripped in `revenueOf`, not in `commissionFor` (2026-08-26).** The payout table shows revenue, rate and commission side by side, so `revenue × rate% = commission` must hold exactly; previously revenue was reported VAT-inclusive against a VAT-stripped commission and 265 of 266 rows did not add up. Effect on commission paid: ≤1 ISK per reservation.
+- **`isFinished(r) = EndedDate != null`** (2026-08-26) — Caren added `EndedDate` for exactly this. Replaced the odometer pair, which Caren fills in unreliably: 7 of 200 closed rentals had a null or transposed reading and so never became collectible. Drives `deliveriesClosed`/confirmed + `allRentalsEnded`.
 - **`cancelledReservationIds`** (`StatusText === "Cancelled"` or `CancelledDate`) excluded from every figure — matches the legacy's keep-only-`"Reservation"`.
 - **Dropoff bucketing:** query window widened by 2 months (`widenQueryStart`, since the rentalapi filters by *start* date) and filtered by `DateTo` — matches the legacy's `DateTo` attribution.
-- Applied in `computeDashboardMetrics`, `buildCommissionMonth` (→ payout amount), and `getEngagementData`/`getRentalsData`. `Total Revenue` = Σ base (excl. additional + road tax).
+- Applied in `computeDashboardMetrics`, `buildCommissionMonth` (→ payout amount), and `getEngagementData`/`getRentalsData`. `Total Revenue` = Σ revenue ex-VAT (excl. additional + road tax) — so it reconciles with `expectedCommission`.
 
 ## Resolved during testing (2026-06-23)
 
