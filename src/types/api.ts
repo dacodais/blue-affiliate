@@ -51,6 +51,9 @@ export interface PayoutsData {
   availableBalance: number;
   pendingAmount: number;
   confirmedMonths: number;
+  // Same list GET /payouts/months returns, embedded to save a request. Optional
+  // because a blue-api deployed before 2026-09 omits it — see getPayoutMonths().
+  months?: CommissionMonth[];
   history: PayoutRecord[];
 }
 

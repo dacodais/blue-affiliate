@@ -14,6 +14,10 @@ import type {
 
 const API_BASE = "/api";
 
+// Paths below deliberately carry NO trailing slash: blue-api mounts each router
+// at the bare path (`/affiliate/payouts` etc.), and Next's rewrite answers the
+// slashed form with a 308 — costing an extra round trip on every call.
+
 class ApiClientError extends Error {
   code: string;
   status: number;
@@ -95,21 +99,26 @@ export const api = {
 
   getDashboard(range: DateRange, basis?: "created" | "starts"): Promise<DashboardSummary> {
     const query = `${dateRangeQuery(range)}${basis ? `&basis=${basis}` : ""}`;
-    return requestData<DashboardSummary>(`/dashboard/${query}`);
+    return requestData<DashboardSummary>(`/dashboard${query}`);
   },
 
   getEngagement(range: DateRange): Promise<EngagementData> {
-    return requestData<EngagementData>(`/performance/engagement/${dateRangeQuery(range)}`);
+    return requestData<EngagementData>(`/performance/engagement${dateRangeQuery(range)}`);
   },
 
   getRentals(range: DateRange): Promise<RentalsData> {
-    return requestData<RentalsData>(`/performance/rentals/${dateRangeQuery(range)}`);
+    return requestData<RentalsData>(`/performance/rentals${dateRangeQuery(range)}`);
   },
 
   getPayouts(): Promise<PayoutsData> {
-    return requestData<PayoutsData>("/payouts/");
+    return requestData<PayoutsData>("/payouts");
   },
 
+  /**
+   * Standalone commission months. `getPayouts()` already embeds this list, so the
+   * Request Payout page must not call both — each one triggers the same 12-month
+   * Caren crawl (~3s per page of results) on a cache miss.
+   */
   async getPayoutMonths(): Promise<CommissionMonth[]> {
     const { months } = await requestData<{ months: CommissionMonth[] }>("/payouts/months");
     return months;
@@ -123,22 +132,22 @@ export const api = {
   },
 
   getSubIdPerformance(range: DateRange): Promise<SubIdPerformanceRow[]> {
-    return requestData<SubIdPerformanceRow[]>(`/performance/sub-ids/${dateRangeQuery(range)}`);
+    return requestData<SubIdPerformanceRow[]>(`/performance/sub-ids${dateRangeQuery(range)}`);
   },
 
   getBankAccount(): Promise<BankAccount | null> {
-    return requestData<BankAccount | null>("/bank-account/");
+    return requestData<BankAccount | null>("/bank-account");
   },
 
   updateBankAccount(input: UpdateBankAccountInput): Promise<BankAccount> {
-    return requestData<BankAccount>("/bank-account/", {
+    return requestData<BankAccount>("/bank-account", {
       method: "PUT",
       body: JSON.stringify(input),
     });
   },
 
   getNotifications(): Promise<Notification[]> {
-    return requestData<Notification[]>("/notifications/");
+    return requestData<Notification[]>("/notifications");
   },
 
   markAllNotificationsRead(): Promise<{ updated: number }> {

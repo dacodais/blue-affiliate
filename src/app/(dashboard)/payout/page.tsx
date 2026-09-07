@@ -48,13 +48,18 @@ export default function PayoutPage() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // One request, not two: `getPayouts()` embeds the commission months. Fetching
+  // them separately made the API run the same 12-month Caren crawl twice per load.
+  //
+  // The fallback covers a blue-api older than this change (it omits `months`), so
+  // the two repos can be deployed in either order without breaking this page.
   const fetchData = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
-      const [payouts, commissionMonths] = await Promise.all([api.getPayouts(), api.getPayoutMonths()]);
+      const payouts = await api.getPayouts();
       setData(payouts);
-      setMonths(commissionMonths);
+      setMonths(payouts.months ?? (await api.getPayoutMonths()));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load payout data");
     } finally {
