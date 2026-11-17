@@ -20,14 +20,55 @@ const API_BASE = "/api";
 
 class ApiClientError extends Error {
   code: string;
+  /** HTTP status, or 0 when the request never got an answer (offline, DNS, etc.). */
   status: number;
+  /** blue-api's requestId — lets support find the request in the server logs. */
+  requestId?: string;
 
-  constructor(message: string, code: string, status: number) {
+  constructor(message: string, code: string, status: number, requestId?: string) {
     super(message);
     this.name = "ApiClientError";
     this.code = code;
     this.status = status;
+    this.requestId = requestId;
   }
+}
+
+/** What to show an affiliate when a request fails. */
+export interface UserFacingError {
+  message: string;
+  /** Quote this to support; it is blue-api's requestId. */
+  reference?: string;
+}
+
+export const SUPPORT_EMAIL = "affiliates@bluecarrental.is";
+
+const GENERIC_ERROR = "Something went wrong on our side. Please try again in a few minutes.";
+
+// Server-side failures carry developer-facing messages ("Internal Server Error",
+// "The booking system timed out") — affiliates get these instead.
+const MESSAGES_BY_CODE: Record<string, string> = {
+  UPSTREAM_TIMEOUT: "Our booking system is responding slowly right now. Please try again in a minute.",
+  VENDOR_UNAVAILABLE: "We can't reach our booking system right now. Please try again in a few minutes.",
+  RATE_LIMIT_EXCEEDED: "Too many requests in a short time. Please wait a moment and try again.",
+  NETWORK_ERROR: "We couldn't reach the server. Check your internet connection and try again.",
+};
+
+/**
+ * Turns any thrown error into something an affiliate can act on.
+ *
+ * 4xx answers (wrong password, payout below the minimum, …) are written for the
+ * user by blue-api, so their message is kept. Everything else — 5xx, timeouts,
+ * network failures, bugs — becomes plain language, with `fallback` used for the
+ * generic case so a page can say what it was trying to do.
+ */
+export function toUserFacingError(err: unknown, fallback = GENERIC_ERROR): UserFacingError {
+  if (!(err instanceof ApiClientError)) return { message: fallback };
+  const reference = err.requestId;
+  const known = MESSAGES_BY_CODE[err.code];
+  if (known) return { message: known, reference };
+  if (err.status >= 400 && err.status < 500) return { message: err.message, reference };
+  return { message: fallback, reference };
 }
 
 function getToken(): string | null {
@@ -46,16 +87,21 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     headers.Authorization = `Bearer ${token}`;
   }
 
-  const res = await fetch(`${API_BASE}/v1/affiliate${path}`, {
-    ...options,
-    headers,
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE}/v1/affiliate${path}`, {
+      ...options,
+      headers,
+    });
+  } catch (err) {
+    throw new ApiClientError(err instanceof Error ? err.message : "Network error", "NETWORK_ERROR", 0);
+  }
 
   if (!res.ok) {
     const body = await res.json().catch(() => null);
     const message = body?.error?.message ?? `Request failed (${res.status})`;
     const code = body?.error?.code ?? "UNKNOWN";
-    throw new ApiClientError(message, code, res.status);
+    throw new ApiClientError(message, code, res.status, body?.error?.requestId);
   }
 
   return res.json() as Promise<T>;

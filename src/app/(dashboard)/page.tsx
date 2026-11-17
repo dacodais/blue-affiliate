@@ -3,12 +3,13 @@
 import { useCallback, useEffect, useState } from "react";
 import Banner from "@/components/Banner";
 import BookingTypesDistribution from "@/components/BookingTypesDistribution";
+import ErrorBanner from "@/components/ErrorBanner";
 import { IconComponent } from "@/components/Icon";
 import PeriodFilter from "@/components/PeriodFilter";
 import StatsGrid from "@/components/StatsGrid";
 import Table, { type Column } from "@/components/Table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { api } from "@/lib/api";
+import { api, toUserFacingError, type UserFacingError } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { getDefaultPeriod, periodToDateRange } from "@/lib/dates";
 import { formatPrice } from "@/lib/utils";
@@ -120,7 +121,7 @@ export default function Home() {
   // Booking Data is by reservation created date; Delivery Data is by pickup date.
   const [bookingData, setBookingData] = useState<DashboardSummary | null>(null);
   const [deliveryData, setDeliveryData] = useState<DashboardSummary | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<UserFacingError | null>(null);
   const [isFetching, setIsFetching] = useState(false);
 
   const fetchData = useCallback(async (p: string) => {
@@ -135,7 +136,7 @@ export default function Home() {
       setBookingData(booking);
       setDeliveryData(delivery);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load dashboard data");
+      setError(toUserFacingError(err, "We couldn't load your dashboard. Please try again in a few minutes."));
     } finally {
       setIsFetching(false);
     }
@@ -146,9 +147,7 @@ export default function Home() {
   }, [period, fetchData]);
 
   if (!bookingData && !deliveryData && error) {
-    return (
-      <Banner level="error" message={error} items={["Please try again or contact support if the issue persists."]} />
-    );
+    return <ErrorBanner error={error} />;
   }
 
   const isInitialLoad = !bookingData && !deliveryData;

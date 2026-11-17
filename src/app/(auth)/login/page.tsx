@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { type FormEvent, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ApiClientError, api } from "@/lib/api";
+import { api, toUserFacingError } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 
 type View = "login" | "forgot" | "forgot-sent";
@@ -39,11 +39,7 @@ export default function LoginPage() {
     try {
       await login(email, password, remember);
     } catch (err) {
-      if (err instanceof ApiClientError) {
-        setError(err.message);
-      } else {
-        setError("Something went wrong. Please try again.");
-      }
+      setError(toUserFacingError(err).message);
     } finally {
       setIsSubmitting(false);
     }
@@ -58,11 +54,7 @@ export default function LoginPage() {
       await api.forgotPassword(email);
       setView("forgot-sent");
     } catch (err) {
-      if (err instanceof ApiClientError) {
-        setError(err.message);
-      } else {
-        setError("Something went wrong. Please try again.");
-      }
+      setError(toUserFacingError(err).message);
     } finally {
       setIsSubmitting(false);
     }

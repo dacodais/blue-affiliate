@@ -2,7 +2,7 @@
 
 import { CircleX, Pencil, Save } from "lucide-react";
 import { useEffect, useState } from "react";
-import { ApiClientError, api } from "@/lib/api";
+import { api, toUserFacingError } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import type { BankAccount as BankAccountType } from "@/types/api";
 import { Input } from "./ui/input";
@@ -58,7 +58,7 @@ export default function BankAccount() {
       setSaved(result);
       setIsEditing(false);
     } catch (err) {
-      setError(err instanceof ApiClientError ? err.message : "Couldn't save your bank account. Please try again.");
+      setError(toUserFacingError(err, "Couldn't save your bank account. Please try again in a few minutes.").message);
     } finally {
       setIsSaving(false);
     }

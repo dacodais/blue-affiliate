@@ -3,6 +3,7 @@
 import { ChevronDown, Info } from "lucide-react";
 import { Fragment, useCallback, useEffect, useState } from "react";
 import Banner from "@/components/Banner";
+import ErrorBanner from "@/components/ErrorBanner";
 import { IconComponent } from "@/components/Icon";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -14,7 +15,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Heading1 } from "@/components/ui/typography";
-import { ApiClientError, api } from "@/lib/api";
+import { api, toUserFacingError, type UserFacingError } from "@/lib/api";
 import { formatMonthYear, formatShortDate } from "@/lib/dates";
 import { cn, formatPrice } from "@/lib/utils";
 import type { CommissionMonth, IndividualRental, PayoutStatus, PayoutsData } from "@/types/api";
@@ -43,7 +44,7 @@ function formatIsoDate(iso: string): string {
 export default function PayoutPage() {
   const [data, setData] = useState<PayoutsData | null>(null);
   const [months, setMonths] = useState<CommissionMonth[]>([]);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<UserFacingError | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -61,7 +62,7 @@ export default function PayoutPage() {
       setData(payouts);
       setMonths(payouts.months ?? (await api.getPayoutMonths()));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load payout data");
+      setError(toUserFacingError(err, "We couldn't load your payout details. Please try again in a few minutes."));
     } finally {
       setIsLoading(false);
     }
@@ -85,11 +86,9 @@ export default function PayoutPage() {
       await fetchData();
       return true;
     } catch (err) {
-      if (err instanceof ApiClientError) {
-        setSubmitError(err.message);
-      } else {
-        setSubmitError("Failed to submit payout request");
-      }
+      setSubmitError(
+        toUserFacingError(err, "We couldn't submit your payout request. Please try again in a few minutes.").message,
+      );
       return false;
     } finally {
       setIsSubmitting(false);
@@ -97,9 +96,7 @@ export default function PayoutPage() {
   }
 
   if (!isLoading && error) {
-    return (
-      <Banner level="error" message={error} items={["Please try again or contact support if the issue persists."]} />
-    );
+    return <ErrorBanner error={error} />;
   }
 
   return (
