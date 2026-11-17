@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { withDevHost } from "@/lib/affiliate-link";
 import { useAuth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 import BankAccount from "./BankAccount";
@@ -38,8 +37,7 @@ export default function Sidebar({ className }: { className?: string }) {
   const pathname = usePathname();
   const { affiliate, logout } = useAuth();
   const isPayout = pathname.startsWith("/payout");
-  // ⚠️ TEMPORARY — points the affiliate link at dev3 until go-live (see withDevHost).
-  const referralLink = affiliate?.affiliateLink ? withDevHost(affiliate.affiliateLink) : null;
+  const referralLink = affiliate?.affiliateLink ?? null;
 
   return (
     <aside className={cn("space-y-[26px]", className)}>

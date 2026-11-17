@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { withDevHost } from "@/lib/affiliate-link";
 import CopyButton from "./CopyButton";
 import { Input } from "./ui/input";
 
@@ -10,8 +9,7 @@ function buildCustomizedLink(
   params: { source: string; medium: string; campaign: string; subId: string },
 ) {
   try {
-    // ⚠️ TEMPORARY — withDevHost rewrites the public host to dev3 until go-live.
-    const url = new URL(withDevHost(baseLink));
+    const url = new URL(baseLink);
     if (params.source) url.searchParams.set("utm_source", params.source);
     if (params.medium) url.searchParams.set("utm_medium", params.medium);
     if (params.campaign) url.searchParams.set("utm_campaign", params.campaign);
