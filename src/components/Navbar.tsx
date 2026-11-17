@@ -4,7 +4,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { withDevHost } from "@/lib/affiliate-link";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { formatRelativeTime } from "@/lib/dates";
@@ -178,8 +177,7 @@ export default function Navbar() {
   const pathname = usePathname();
   const { affiliate, logout } = useAuth();
   const isPayout = pathname.startsWith("/payout");
-  // ⚠️ TEMPORARY — points the affiliate link at dev3 until go-live (see withDevHost).
-  const referralLink = affiliate?.affiliateLink ? withDevHost(affiliate.affiliateLink) : null;
+  const referralLink = affiliate?.affiliateLink ?? null;
 
   return (
     <>
