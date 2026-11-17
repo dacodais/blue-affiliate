@@ -6,7 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { type FormEvent, Suspense, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ApiClientError, api } from "@/lib/api";
+import { api, toUserFacingError } from "@/lib/api";
 
 const BackToLogin = () => (
   <div className="mt-[30px] pt-[25px] border-t border-light-gray text-center text-sm">
@@ -46,11 +46,7 @@ function ResetPasswordForm() {
       await api.resetPassword(token, password);
       setDone(true);
     } catch (err) {
-      if (err instanceof ApiClientError) {
-        setError(err.message);
-      } else {
-        setError("Something went wrong. Please try again.");
-      }
+      setError(toUserFacingError(err).message);
     } finally {
       setIsSubmitting(false);
     }

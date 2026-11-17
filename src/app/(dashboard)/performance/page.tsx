@@ -4,10 +4,11 @@ import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { Bar, BarChart, CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
 import Banner from "@/components/Banner";
+import ErrorBanner from "@/components/ErrorBanner";
 import PeriodFilter from "@/components/PeriodFilter";
 import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { api } from "@/lib/api";
+import { api, toUserFacingError, type UserFacingError } from "@/lib/api";
 import { formatShortDate, getDefaultPeriod, periodToDateRange } from "@/lib/dates";
 import { cn, formatPrice } from "@/lib/utils";
 import type { DashboardSummary, EngagementData, SubIdPerformanceRow } from "@/types/api";
@@ -45,7 +46,7 @@ export default function PerformancePage() {
   const [engagement, setEngagement] = useState<EngagementData | null>(null);
   const [dashboard, setDashboard] = useState<DashboardSummary | null>(null);
   const [subIdRows, setSubIdRows] = useState<SubIdPerformanceRow[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<UserFacingError | null>(null);
   const [isFetching, setIsFetching] = useState(false);
 
   const fetchData = useCallback(async (p: string) => {
@@ -62,7 +63,7 @@ export default function PerformancePage() {
       setDashboard(dashboardRes);
       setSubIdRows(subIdsRes);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load performance data");
+      setError(toUserFacingError(err, "We couldn't load your performance data. Please try again in a few minutes."));
     } finally {
       setIsFetching(false);
     }
@@ -84,11 +85,7 @@ export default function PerformancePage() {
     <Fragment>
       {error && !engagement && (
         <div className="mb-6">
-          <Banner
-            level="error"
-            message={error}
-            items={["Please try again or contact support if the issue persists."]}
-          />
+          <ErrorBanner error={error} />
         </div>
       )}
 
