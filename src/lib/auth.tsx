@@ -1,7 +1,8 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
+import { createContext, type ReactNode, useCallback, useContext, useEffect, useState } from "react";
+import { withAffiliateLink } from "@/lib/affiliate-link";
 import { api } from "@/lib/api";
 import type { AffiliateProfile } from "@/types/api";
 
@@ -42,7 +43,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (storedToken && !isTokenExpired(storedToken)) {
       setToken(storedToken);
       if (storedAffiliate) {
-        setAffiliate(JSON.parse(storedAffiliate));
+        setAffiliate(withAffiliateLink(JSON.parse(storedAffiliate)));
       }
     } else if (storedToken) {
       localStorage.removeItem(TOKEN_KEY);
@@ -56,9 +57,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     async (email: string, password: string, rememberMe = false) => {
       const res = await api.login(email, password, rememberMe);
       localStorage.setItem(TOKEN_KEY, res.token);
-      localStorage.setItem(AFFILIATE_KEY, JSON.stringify(res.affiliate));
+      const profile = withAffiliateLink(res.affiliate);
+      localStorage.setItem(AFFILIATE_KEY, JSON.stringify(profile));
       setToken(res.token);
-      setAffiliate(res.affiliate);
+      setAffiliate(profile);
       router.push("/");
     },
     [router],
