@@ -9,6 +9,7 @@ import PeriodFilter from "@/components/PeriodFilter";
 import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { api, toUserFacingError, type UserFacingError } from "@/lib/api";
+import { useAuth } from "@/lib/auth";
 import { formatShortDate, getDefaultPeriod, periodToDateRange } from "@/lib/dates";
 import { cn, formatPrice } from "@/lib/utils";
 import type { DashboardSummary, EngagementData, SubIdPerformanceRow } from "@/types/api";
@@ -239,11 +240,15 @@ export default function PerformancePage() {
         </Tabs>
       </section>
 
-      <SubIdPerformance
-        rows={subIdRows ?? []}
-        loading={isInitialLoad || (isFetching && !subIdRows)}
-        className="mt-6 sm:mt-10 mb-10"
-      />
+      {/* Hidden when loading failed: the default-link row would otherwise show a made-up 0. */}
+      {(subIdRows || isInitialLoad || isFetching) && (
+        <LinkPerformance
+          rows={subIdRows ?? []}
+          totals={dashboard}
+          loading={isInitialLoad || (isFetching && !subIdRows)}
+          className="mt-6 sm:mt-10 mb-10"
+        />
+      )}
 
       <Banner level="info" message="Number of bookings and revenue may change due to cancellations." />
     </Fragment>
@@ -309,15 +314,53 @@ function PerformanceStats({ data, loading }: { data: DashboardSummary | null; lo
   );
 }
 
-function SubIdPerformance({
+const isUntagged = (row: SubIdPerformanceRow) => !row.subId && !row.source && !row.medium && !row.campaign;
+
+const sumOrNull = (values: (number | null)[]) =>
+  values.some((v) => v === null) ? null : values.reduce<number>((a, v) => a + (v ?? 0), 0);
+
+/**
+ * Splits the per-sub-ID rows into the untagged default link and the tagged variants.
+ * If BlueDesk returns untagged traffic as a row with every tag empty, that row is the
+ * default link. Otherwise the default link's numbers are the period totals minus the
+ * tagged rows; a metric the tagged rows don't report yet (null) stays null.
+ */
+function splitDefaultLink(rows: SubIdPerformanceRow[], totals: DashboardSummary | null) {
+  const tagged = rows.filter((r) => !isUntagged(r));
+  const untagged = rows.find(isUntagged);
+  if (untagged) return { defaultRow: untagged, tagged };
+
+  const remainder = (total: number | undefined, taggedSum: number | null) =>
+    total === undefined || taggedSum === null ? null : Math.max(0, total - taggedSum);
+  const clicks = remainder(totals?.totalClicks.value, sumOrNull(tagged.map((r) => r.clicks))) ?? 0;
+  const bookings = remainder(totals?.totalBookings.value, sumOrNull(tagged.map((r) => r.bookings)));
+  const revenue = remainder(totals?.totalRevenue.value, sumOrNull(tagged.map((r) => r.revenue)));
+  const defaultRow: SubIdPerformanceRow = {
+    subId: "",
+    source: "",
+    medium: "",
+    campaign: "",
+    clicks,
+    bookings,
+    conversionPercent: bookings === null ? null : clicks > 0 ? (bookings / clicks) * 100 : 0,
+    revenue,
+  };
+  return { defaultRow, tagged };
+}
+
+function LinkPerformance({
   rows,
+  totals,
   loading,
   className,
 }: {
   rows: SubIdPerformanceRow[];
+  totals: DashboardSummary | null;
   loading: boolean;
   className?: string;
 }) {
+  const { affiliate } = useAuth();
+  const { defaultRow, tagged } = useMemo(() => splitDefaultLink(rows, totals), [rows, totals]);
   const [sortKey, setSortKey] = useState<SortKey>("clicks");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
 
@@ -326,12 +369,12 @@ function SubIdPerformance({
       setSortDirection((d) => (d === "asc" ? "desc" : "asc"));
     } else {
       setSortKey(key);
-      setSortDirection(typeof rows[0]?.[key] === "number" ? "desc" : "asc");
+      setSortDirection(typeof defaultRow[key] === "number" ? "desc" : "asc");
     }
   };
 
   const sortedRows = useMemo(() => {
-    const copy = [...rows];
+    const copy = [...tagged];
     copy.sort((a, b) => {
       const av = a[sortKey];
       const bv = b[sortKey];
@@ -345,7 +388,7 @@ function SubIdPerformance({
       return sortDirection === "asc" ? String(av).localeCompare(String(bv)) : String(bv).localeCompare(String(av));
     });
     return copy;
-  }, [rows, sortKey, sortDirection]);
+  }, [tagged, sortKey, sortDirection]);
 
   const columns: { key: SortKey; label: string; align: "left" | "right" }[] = [
     { key: "subId", label: "Sub-ID", align: "left" },
@@ -358,11 +401,25 @@ function SubIdPerformance({
     { key: "revenue", label: "Revenue", align: "right" },
   ];
 
+  const exampleLink = useMemo(() => {
+    const fallback = "bluecarrental.is/?affiliate=your_id&sub_id=blog_post_1";
+    if (!affiliate?.affiliateLink) return fallback;
+    try {
+      const url = new URL(affiliate.affiliateLink);
+      url.searchParams.set("sub_id", "blog_post_1");
+      return url.toString().replace(/^https?:\/\//, "");
+    } catch {
+      return fallback;
+    }
+  }, [affiliate?.affiliateLink]);
+
   return (
     <section className={cn("bg-card border border-light-gray rounded-2xl p-6", className)}>
       <div className="flex flex-col gap-1">
-        <h2 className="text-lg font-medium">Performance by Sub-ID</h2>
-        <p className="text-sm text-[#6a7282]">Track performance of different traffic sources using sub-ID tags</p>
+        <h2 className="text-lg font-medium">Link performance</h2>
+        <p className="text-sm text-[#6a7282]">
+          Your default affiliate link, plus every tagged version of it (sub-ID, source, medium, campaign)
+        </p>
       </div>
 
       <div className="mt-5 overflow-x-auto">
@@ -392,58 +449,53 @@ function SubIdPerformance({
             </tr>
           </thead>
           <tbody>
-            {loading ? (
-              [0, 1, 2, 3, 4].map((i) => (
-                <tr key={i} className="border-b border-light-gray last:border-b-0">
-                  {columns.map((col) => (
-                    <td key={col.key} className={cn("py-4", col.align === "left" ? "pr-4" : "px-4")}>
-                      <div
-                        className={cn(
-                          "animate-pulse h-4 bg-muted rounded",
-                          col.align === "right" ? "ml-auto w-12" : "w-24",
-                        )}
-                      />
+            {loading
+              ? [0, 1, 2, 3, 4].map((i) => (
+                  <tr key={i} className="border-b border-light-gray last:border-b-0">
+                    {columns.map((col) => (
+                      <td key={col.key} className={cn("py-4", col.align === "left" ? "pr-4" : "px-4")}>
+                        <div
+                          className={cn(
+                            "animate-pulse h-4 bg-muted rounded",
+                            col.align === "right" ? "ml-auto w-12" : "w-24",
+                          )}
+                        />
+                      </td>
+                    ))}
+                  </tr>
+                ))
+              : [defaultRow, ...sortedRows].map((row, i) => (
+                  <tr
+                    key={i === 0 ? "default-link" : `${row.subId}|${row.source}|${row.medium}|${row.campaign}`}
+                    className="border-b border-light-gray last:border-b-0"
+                    title={i === 0 ? (affiliate?.affiliateLink ?? undefined) : undefined}
+                  >
+                    <td className="py-4 pr-4 font-medium">{row.subId}</td>
+                    <td className="py-4 pr-4">{row.source}</td>
+                    <td className="py-4 pr-4">{row.medium}</td>
+                    <td className="py-4 pr-4">{row.campaign}</td>
+                    <td className="py-4 px-4 text-right">{row.clicks.toLocaleString()}</td>
+                    <td className="py-4 px-4 text-right">
+                      {row.bookings === null ? "—" : row.bookings.toLocaleString()}
                     </td>
-                  ))}
-                </tr>
-              ))
-            ) : sortedRows.length === 0 ? (
-              <tr>
-                <td colSpan={columns.length} className="py-10 text-center text-sm text-[#6a7282]">
-                  No sub-ID traffic recorded for this period. Add <code className="font-mono">?sub=your_tag</code> to
-                  your links to start tracking.
-                </td>
-              </tr>
-            ) : (
-              sortedRows.map((row) => (
-                <tr key={row.subId} className="border-b border-light-gray last:border-b-0">
-                  <td className="py-4 pr-4 font-medium">{row.subId}</td>
-                  <td className="py-4 pr-4">{row.source}</td>
-                  <td className="py-4 pr-4">{row.medium}</td>
-                  <td className="py-4 pr-4">{row.campaign}</td>
-                  <td className="py-4 px-4 text-right">{row.clicks.toLocaleString()}</td>
-                  <td className="py-4 px-4 text-right">
-                    {row.bookings === null ? "—" : row.bookings.toLocaleString()}
-                  </td>
-                  <td className="py-4 px-4 text-right">
-                    {row.conversionPercent === null ? "—" : `${row.conversionPercent.toFixed(2)}%`}
-                  </td>
-                  <td className="py-4 pl-4 text-right font-medium">
-                    {row.revenue === null ? "—" : formatPrice(row.revenue)}
-                  </td>
-                </tr>
-              ))
-            )}
+                    <td className="py-4 px-4 text-right">
+                      {row.conversionPercent === null ? "—" : `${row.conversionPercent.toFixed(2)}%`}
+                    </td>
+                    <td className="py-4 pl-4 text-right font-medium">
+                      {row.revenue === null ? "—" : formatPrice(row.revenue)}
+                    </td>
+                  </tr>
+                ))}
           </tbody>
         </table>
       </div>
 
       <div className="mt-5 rounded-lg bg-light-gray/20 px-4 py-4">
-        <p className="text-sm font-medium">💡 How to use Sub-ID tracking</p>
+        <p className="text-sm font-medium">💡 How to tag your links</p>
         <p className="mt-2 text-xs text-[#6a7282]">
-          Add <code className="font-mono">?sub=your_tag</code> to your affiliate links to track different traffic
-          sources. For example: <code className="font-mono">www.bluecarrental.is/sfvero?sub=blog_post_1</code>. This
-          helps you identify which channels drive the best results so you can optimize your marketing efforts.
+          Use the Link Customizer to add a sub-ID, source, medium or campaign to your affiliate link, e.g.{" "}
+          <code className="font-mono break-all">{exampleLink}</code>. Each combination gets its own row here, so you can
+          see which channels drive the best results. Clicks on your untagged link show in the first row.
         </p>
       </div>
     </section>
